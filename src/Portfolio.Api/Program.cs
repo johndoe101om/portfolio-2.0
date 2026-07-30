@@ -150,15 +150,12 @@ app.Use(async (ctx, next) =>
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Portfolio API v1");
-        c.RoutePrefix = "swagger";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Portfolio API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseCors("PortfolioPolicy");
 app.UseRateLimiter();
@@ -168,6 +165,16 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseRouting();
 app.MapControllers();
+
+// ── Root status endpoint ──────────────────────────────────────────────────────
+app.MapGet("/", () => Results.Ok(new
+{
+    name = "Portfolio API",
+    status = "Online",
+    version = "1.0.0",
+    docs = "/swagger",
+    health = "/health"
+}));
 
 // ── Health check endpoint ─────────────────────────────────────────────────────
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
