@@ -57,9 +57,9 @@ export function HeroSection({ onNavigate }: Props) {
         </div>
 
         <div className={styles.socials}>
-          <a href="https://www.linkedin.com/in/satyam-webdeveloper/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={styles.socialLink}>in</a>
-          <a href="https://www.instagram.com/be_stranger7964/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className={styles.socialLink}>ig</a>
-          <a href="https://wa.me/qr/TZU5O77ZT4MGN1" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className={styles.socialLink}>wa</a>
+          <a href="https://www.linkedin.com/in/satyam-webdeveloper/" target="_blank" rel="noopener noreferrer" aria-label="in - LinkedIn" className={styles.socialLink}>in</a>
+          <a href="https://www.instagram.com/be_stranger7964/" target="_blank" rel="noopener noreferrer" aria-label="ig - Instagram" className={styles.socialLink}>ig</a>
+          <a href="https://wa.me/qr/TZU5O77ZT4MGN1" target="_blank" rel="noopener noreferrer" aria-label="wa - WhatsApp" className={styles.socialLink}>wa</a>
         </div>
       </div>
 

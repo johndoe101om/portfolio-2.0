@@ -6,8 +6,8 @@ export function LoadingScreen() {
   const [removed, setRemoved] = useState(false);
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setRemoving(true), 800);
-    const timer2 = setTimeout(() => setRemoved(true), 1400);
+    const timer1 = setTimeout(() => setRemoving(true), 150);
+    const timer2 = setTimeout(() => setRemoved(true), 400);
     return () => { clearTimeout(timer1); clearTimeout(timer2); };
   }, []);
 

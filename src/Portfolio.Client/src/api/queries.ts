@@ -23,10 +23,15 @@ export function useProfile() {
     queryKey: ['profile'],
     queryFn: async () => {
       if (!USE_API) return PROFILE;
-      const res = await apiClient.get('/api/profile');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/profile');
+        return res.data ?? PROFILE;
+      } catch {
+        return PROFILE;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -36,10 +41,15 @@ export function useSocialLinks() {
     queryKey: ['social-links'],
     queryFn: async () => {
       if (!USE_API) return SOCIAL_LINKS;
-      const res = await apiClient.get('/api/social-links');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/social-links');
+        return res.data ?? SOCIAL_LINKS;
+      } catch {
+        return SOCIAL_LINKS;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -49,10 +59,15 @@ export function useSkills() {
     queryKey: ['skills'],
     queryFn: async () => {
       if (!USE_API) return SKILLS;
-      const res = await apiClient.get('/api/skills');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/skills');
+        return res.data ?? SKILLS;
+      } catch {
+        return SKILLS;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -87,10 +102,15 @@ export function useServices() {
     queryKey: ['services'],
     queryFn: async () => {
       if (!USE_API) return SERVICES;
-      const res = await apiClient.get('/api/services');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/services');
+        return res.data ?? SERVICES;
+      } catch {
+        return SERVICES;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -100,10 +120,15 @@ export function useEducation() {
     queryKey: ['education'],
     queryFn: async () => {
       if (!USE_API) return EDUCATION;
-      const res = await apiClient.get('/api/education');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/education');
+        return res.data ?? EDUCATION;
+      } catch {
+        return EDUCATION;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -113,10 +138,15 @@ export function useSoftSkills() {
     queryKey: ['soft-skills'],
     queryFn: async () => {
       if (!USE_API) return SOFT_SKILLS;
-      const res = await apiClient.get('/api/experiences');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/experiences');
+        return res.data ?? SOFT_SKILLS;
+      } catch {
+        return SOFT_SKILLS;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -125,15 +155,21 @@ export function useProjects(category?: string) {
   return useQuery({
     queryKey: ['projects', category],
     queryFn: async () => {
-      if (!USE_API) {
+      const getStaticProjects = () => {
         if (!category || category === '*') return PROJECTS;
         return PROJECTS.filter((p: Project) => p.categories.includes(category as Project['categories'][number]));
+      };
+      if (!USE_API) return getStaticProjects();
+      try {
+        const params = category && category !== '*' ? { category } : {};
+        const res = await apiClient.get('/api/projects', { params });
+        return res.data ?? getStaticProjects();
+      } catch {
+        return getStaticProjects();
       }
-      const params = category && category !== '*' ? { category } : {};
-      const res = await apiClient.get('/api/projects', { params });
-      return res.data;
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -141,12 +177,18 @@ export function useProject(slug: string) {
   return useQuery({
     queryKey: ['project', slug],
     queryFn: async () => {
-      if (!USE_API) return PROJECTS.find((p: Project) => p.slug === slug) ?? null;
-      const res = await apiClient.get(`/api/projects/${slug}`);
-      return res.data;
+      const getStaticProject = () => PROJECTS.find((p: Project) => p.slug === slug) ?? null;
+      if (!USE_API) return getStaticProject();
+      try {
+        const res = await apiClient.get(`/api/projects/${slug}`);
+        return res.data ?? getStaticProject();
+      } catch {
+        return getStaticProject();
+      }
     },
     enabled: Boolean(slug),
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -156,10 +198,15 @@ export function useBlogPosts() {
     queryKey: ['blog'],
     queryFn: async () => {
       if (!USE_API) return BLOG_POSTS;
-      const res = await apiClient.get('/api/blog');
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/blog');
+        return res.data ?? BLOG_POSTS;
+      } catch {
+        return BLOG_POSTS;
+      }
     },
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -167,12 +214,18 @@ export function useBlogPost(slug: string) {
   return useQuery({
     queryKey: ['blog', slug],
     queryFn: async () => {
-      if (!USE_API) return BLOG_POSTS.find((p: BlogPost) => p.slug === slug) ?? null;
-      const res = await apiClient.get(`/api/blog/${slug}`);
-      return res.data;
+      const getStaticBlog = () => BLOG_POSTS.find((p: BlogPost) => p.slug === slug) ?? null;
+      if (!USE_API) return getStaticBlog();
+      try {
+        const res = await apiClient.get(`/api/blog/${slug}`);
+        return res.data ?? getStaticBlog();
+      } catch {
+        return getStaticBlog();
+      }
     },
     enabled: Boolean(slug),
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 

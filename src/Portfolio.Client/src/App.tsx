@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import { StarCanvas } from './components/ui/StarCanvas';
 import { Sidebar } from './components/layout/Sidebar';
 import { LoadingScreen } from './components/ui/LoadingScreen';
@@ -12,10 +12,11 @@ import { ResumeSection } from './components/sections/ResumeSection';
 import { PortfolioSection } from './components/sections/PortfolioSection';
 import { BlogSection } from './components/sections/BlogSection';
 import { ContactSection } from './components/sections/ContactSection';
-import { AdminPanel } from './components/admin/AdminPanel';
 import { NAV_ITEMS } from './api/staticData';
 import { useProfile, useSocialLinks } from './api/queries';
 import styles from './App.module.css';
+
+const AdminPanel = lazy(() => import('./components/admin/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 
 // SectionId is imported from types
 

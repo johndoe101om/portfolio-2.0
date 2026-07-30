@@ -11,45 +11,79 @@ export function StarCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     let rafId: number;
     let stars: Star[] = [];
+    let lastTime = 0;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function init() {
       if (!canvas) return;
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      stars = Array.from({ length: 150 }, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.4 + 0.2,
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      const starCount = width < 768 ? 30 : 60;
+      stars = Array.from({ length: starCount }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 1.2 + 0.3,
         o: Math.random(),
-        s: Math.random() * 0.005 + 0.001,
+        s: Math.random() * 0.004 + 0.001,
         d: Math.random() > 0.5 ? 1 : -1,
       }));
     }
 
-    function draw() {
+    function renderFrame() {
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      stars.forEach((s) => {
-        s.o += s.s * s.d;
-        if (s.o >= 1 || s.o <= 0) s.d *= -1;
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        if (!prefersReducedMotion) {
+          s.o += s.s * s.d;
+          if (s.o >= 1 || s.o <= 0) s.d *= -1;
+        }
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0,212,255,${s.o * 0.55})`;
+        ctx.fillStyle = `rgba(0,212,255,${s.o * 0.5})`;
         ctx.fill();
-      });
-      rafId = requestAnimationFrame(draw);
+      }
+    }
+
+    function loop(timestamp: number) {
+      if (document.hidden) {
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
+
+      // Throttle to ~30 FPS (33ms interval)
+      if (timestamp - lastTime >= 33) {
+        lastTime = timestamp;
+        renderFrame();
+      }
+
+      if (!prefersReducedMotion) {
+        rafId = requestAnimationFrame(loop);
+      }
     }
 
     init();
-    draw();
+    renderFrame();
 
-    const onResize = () => init();
-    window.addEventListener('resize', onResize);
+    if (!prefersReducedMotion) {
+      rafId = requestAnimationFrame(loop);
+    }
+
+    const onResize = () => {
+      init();
+      renderFrame();
+    };
+
+    window.addEventListener('resize', onResize, { passive: true });
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', onResize);

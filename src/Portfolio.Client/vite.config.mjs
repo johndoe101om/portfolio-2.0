@@ -14,13 +14,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    cssCodeSplit: true,
+    target: 'esnext',
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
           react: ['react', 'react-dom'],
           query: ['@tanstack/react-query'],
           motion: ['framer-motion'],
+          icons: ['lucide-react'],
         },
       },
     },
