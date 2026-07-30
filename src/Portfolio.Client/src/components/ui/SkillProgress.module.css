@@ -1,0 +1,7 @@
+.box { margin-bottom: 4px; }
+.header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.name { font-family: var(--font-display); font-weight: 500; font-size: 13px; color: var(--text2); }
+.pct { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--cyan); }
+.track { height: 5px; background: rgba(255,255,255,.07); border-radius: var(--r-pill); overflow: hidden; }
+.fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); border-radius: var(--r-pill); transition: width 1.8s cubic-bezier(.4,0,.2,1); width: 0%; }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }

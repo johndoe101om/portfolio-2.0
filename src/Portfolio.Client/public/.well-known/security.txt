@@ -1,0 +1,4 @@
+Contact: mailto:sirsatyamchaudhary@gmail.com
+Expires: 2026-12-31T00:00:00.000Z
+Preferred-Languages: en, hi
+Canonical: https://www.codersatyam.com/.well-known/security.txt

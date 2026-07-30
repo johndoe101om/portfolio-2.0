@@ -1,0 +1,84 @@
+.sidebar {
+  width: 72px;
+  flex-shrink: 0;
+  background: var(--glass);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  gap: 4px;
+  position: relative;
+  z-index: 100;
+  height: 100vh;
+}
+
+.logo {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  color: #000; margin-bottom: 20px;
+  cursor: pointer; border: none;
+  transition: transform var(--t-base), box-shadow var(--t-base);
+}
+.logo:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--cyan-glow); }
+
+.navList { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+
+.navItem {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text3);
+  transition: all var(--t-base);
+  position: relative; font-size: 18px;
+  background: transparent; border: none;
+}
+.navItem:hover { background: var(--cyan-dim); }
+.navItem.active {
+  background: var(--cyan-dim);
+}
+.navItem.active::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 22px;
+  background: var(--cyan);
+  border-radius: 0 4px 4px 0;
+}
+
+.emoji { line-height: 1; }
+
+.tooltip {
+  position: absolute;
+  left: 56px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg3);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  z-index: 200;
+}
+.navItem:hover .tooltip { opacity: 1; }
+
+.adminBtn {
+  background: rgba(245,158,11,.1);
+  color: var(--amber) !important;
+}
+.adminBtn:hover { background: rgba(245,158,11,.18); }
+.adminBtn.active { background: rgba(245,158,11,.18); }
+.adminBtn.active::before { background: var(--amber); }
+
+.bottom { margin-top: auto; }
+
+@media (max-width: 768px) { .sidebar { display: none; } }

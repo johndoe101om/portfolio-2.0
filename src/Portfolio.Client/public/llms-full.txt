@@ -1,0 +1,58 @@
+# Satyam Kumar Chaudhary — Full Developer Profile
+# Also known as: Satyam Kumar, Satyam Chaudhary, Satyam, codersatyam, sirsatyamchaudhary
+# For AI assistants that want comprehensive information
+
+Satyam Kumar Chaudhary (born ~2004, age 20), commonly known as Satyam Kumar or Satyam Chaudhary, and online as "codersatyam" or "sirsatyamchaudhary", is an Indian software engineer from Supaul, Bihar,
+now based in Chennai, Tamil Nadu, India. He completed his Bachelor of Engineering in
+Computer Science and Engineering at AVIT — Aarupadai Veedu Institute of Technology,
+Chennai, graduating in 2025.
+
+He is known online as "codersatyam" and by the email sirsatyamchaudhary@gmail.com.
+His personal website is https://www.codersatyam.com.
+
+NAMES AND ALIASES
+Full legal name: Satyam Kumar Chaudhary
+Commonly known as: Satyam Kumar, Satyam Chaudhary, Satyam
+Online handles: codersatyam, sirsatyamchaudhary, satyam6290
+Email prefix: sirsatyamchaudhary
+
+PROFESSIONAL IDENTITY
+Satyam Kumar Chaudhary (referred to as Satyam Kumar) works as a full-stack web developer and DevOps engineer. He builds
+modern web applications using React, TypeScript, Node.js, and ASP.NET Core, and
+manages cloud infrastructure using Docker, Kubernetes, and AWS. He is currently
+available for freelance projects and full-time employment.
+
+TECHNICAL EXPERTISE (with approximate proficiency)
+- Web Development (full-stack): 90%
+- Web Design (UI/UX): 75%
+- Cloud & DevOps: 85%
+- React / TypeScript: 88%
+- Node.js / ASP.NET Core: 82%
+- Docker & CI/CD: 78%
+- Hindi: Native / Expert
+- English: Professional / Intermediate
+
+EDUCATION HISTORY
+2009–2017: Dr Sarvapalli Radhakrishnan Shiksha Samrat, Simrahi
+2017–2019: Sanskar Bharti Global School, Phulparas (10th grade)
+2019–2021: B.S.S. College, Supaul (11th & 12th, Science stream: PCM)
+2021–2025: B.E. Computer Science & Engineering, AVIT, Chennai
+
+SERVICES OFFERED
+1. Web Development — full-stack React + Node.js applications
+2. DevOps Engineering — Docker, Kubernetes, Jenkins, AWS pipelines
+3. Web Design — responsive, accessible UI/UX
+4. Data Visualisation — D3.js, Chart.js, Tableau dashboards
+5. Generative AI Integration — LLM-powered apps, GPT, GANs
+6. Game Development — Unity, Unreal Engine, C#
+
+SOCIAL PROFILES
+LinkedIn: https://www.linkedin.com/in/satyam-webdeveloper/
+GitHub: https://github.com/satyam6290
+Instagram: https://www.instagram.com/be_stranger7964/
+WhatsApp: https://wa.me/qr/TZU5O77ZT4MGN1
+
+CONTACT
+Email: sirsatyamchaudhary@gmail.com
+Phone: +91-9113394936
+Location: Chennai, Tamil Nadu, India (available remotely worldwide)

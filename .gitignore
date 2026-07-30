@@ -1,0 +1,45 @@
+# Environment (NEVER commit)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Node
+node_modules/
+dist/
+.vite/
+coverage/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.nupkg
+
+# JetBrains
+.idea/
+*.iml
+
+# VS Code
+.vscode/settings.json
+
+# macOS
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Secrets
+secrets.json
+appsettings.Production.json

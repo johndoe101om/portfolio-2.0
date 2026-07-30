@@ -1,0 +1,43 @@
+name: Docker Build Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/Portfolio.Client
+          file: src/Portfolio.Client/Dockerfile
+          push: false
+          tags: portfolio-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/Portfolio.Api/Dockerfile
+          push: false
+          tags: portfolio-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Docker Compose config
+        run: docker compose config
+        env:
+          POSTGRES_PASSWORD: ci_test_password

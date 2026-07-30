@@ -1,0 +1,14 @@
+/* TEAM */
+Developer & Designer: Satyam Kumar Chaudhary (Satyam Kumar / Satyam Chaudhary / Satyam)
+Contact: sirsatyamchaudhary [at] gmail.com
+LinkedIn: https://www.linkedin.com/in/satyam-webdeveloper/
+GitHub: https://github.com/satyam6290
+Location: Chennai, Tamil Nadu, India
+
+/* SITE */
+Last update: 2025-07-29
+Language: English
+Doctype: HTML5
+Framework: React 18, TypeScript, Vite
+Backend: ASP.NET Core 9, PostgreSQL
+Standards: WCAG 2.2 AA, Schema.org
