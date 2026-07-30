@@ -1,0 +1,10 @@
+{
+  "name": "portfolio-root",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:backend": "dotnet watch run --project src/Portfolio.Api",
+    "dev:frontend": "npm run dev --prefix src/Portfolio.Client",
+    "dev": "npx concurrently -n \"API,CLIENT\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  }
+}

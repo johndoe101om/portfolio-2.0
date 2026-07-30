@@ -15,13 +15,21 @@ public class SmtpEmailService(IConfiguration config, ILogger<SmtpEmailService> l
     public async Task<bool> SendContactNotificationAsync(
         string name, string email, string subject, string message, CancellationToken ct = default)
     {
-        var smtpHost = config["Email:SmtpHost"];
-        var smtpPort = int.TryParse(config["Email:SmtpPort"], out var configuredPort)
-            ? configuredPort
-            : 587;
-        var smtpUser = config["Email:SmtpUser"];
-        var smtpPass = config["Email:SmtpPass"];  // from environment variable / secrets
-        var toEmail  = config["Email:ToAddress"]  ?? "sirsatyamchaudhary@gmail.com";
+        string? GetVal(string configKey, string envKey)
+        {
+            var v = config[configKey];
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+            v = Environment.GetEnvironmentVariable(envKey);
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+            return config[envKey];
+        }
+
+        var smtpHost = GetVal("Email:SmtpHost", "SMTP_HOST");
+        var portStr  = GetVal("Email:SmtpPort", "SMTP_PORT");
+        var smtpPort = int.TryParse(portStr, out var configuredPort) ? configuredPort : 587;
+        var smtpUser = GetVal("Email:SmtpUser", "SMTP_USER");
+        var smtpPass = GetVal("Email:SmtpPass", "SMTP_PASS")?.Replace(" ", "").Trim();
+        var toEmail  = GetVal("Email:ToAddress", "NOTIFY_EMAIL") ?? "sirsatyamchaudhary@gmail.com";
 
         if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser))
         {

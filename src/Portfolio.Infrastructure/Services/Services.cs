@@ -161,10 +161,14 @@ public class ProjectService(PortfolioDbContext db) : IProjectService
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var project = await db.Projects.FindAsync([id], ct);
+        var project = await db.Projects
+            .Include(p => p.Technologies)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
+
         if (project is null)
             return false;
 
+        db.ProjectTechnologies.RemoveRange(project.Technologies);
         db.Projects.Remove(project);
         await db.SaveChangesAsync(ct);
         return true;

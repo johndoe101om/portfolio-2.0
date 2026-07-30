@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (.NET API)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-api",
+      "program": "${workspaceFolder}/src/Portfolio.Api/bin/Debug/net9.0/Portfolio.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/Portfolio.Api",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "Frontend (Vite Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/src/Portfolio.Client",
+      "preLaunchTask": "start-frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 Start Both (Single Click Debug)",
+      "configurations": [
+        "Backend (.NET API)",
+        "Frontend (Vite Chrome)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

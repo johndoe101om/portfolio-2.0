@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
+import { PROJECTS, BLOG_POSTS } from '../../api/staticData';
 import type { BlogPost, Project, ProjectCategory } from '../../types';
 import styles from './AdminPanel.module.css';
 
@@ -206,21 +207,33 @@ export function AdminPanel() {
     queryKey: ['admin', 'projects'],
     enabled: Boolean(token),
     queryFn: async () => {
-      const res = await apiClient.get('/api/projects', { headers: authHeaders(token) });
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/projects', { headers: authHeaders(token) });
+        return res.data ?? PROJECTS;
+      } catch {
+        return PROJECTS;
+      }
     },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const blogQuery = useQuery<BlogPost[]>({
     queryKey: ['admin', 'blog'],
     enabled: Boolean(token),
     queryFn: async () => {
-      const res = await apiClient.get('/api/blog', {
-        params: { page: 1, pageSize: 50, includeUnpublished: true },
-        headers: authHeaders(token),
-      });
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/blog', {
+          params: { page: 1, pageSize: 50, includeUnpublished: true },
+          headers: authHeaders(token),
+        });
+        return res.data ?? BLOG_POSTS;
+      } catch {
+        return BLOG_POSTS;
+      }
     },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const projects = projectsQuery.data ?? [];
@@ -304,7 +317,17 @@ export function AdminPanel() {
 
   const deleteProject = useMutation({
     mutationFn: async (id: number) => {
-      await apiClient.delete(`/api/projects/${id}`, { headers: authHeaders(token) });
+      try {
+        await apiClient.delete(`/api/projects/${id}`, { headers: authHeaders(token) });
+      } catch {
+        // Fallback: remove from query cache for offline / static mode
+      }
+      queryClient.setQueryData<Project[]>(['admin', 'projects'], (old) =>
+        old ? old.filter((p) => p.id !== id) : []
+      );
+      queryClient.setQueryData<Project[]>(['projects'], (old) =>
+        old ? old.filter((p) => p.id !== id) : []
+      );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
@@ -349,7 +372,17 @@ export function AdminPanel() {
 
   const deleteBlog = useMutation({
     mutationFn: async (id: number) => {
-      await apiClient.delete(`/api/blog/${id}`, { headers: authHeaders(token) });
+      try {
+        await apiClient.delete(`/api/blog/${id}`, { headers: authHeaders(token) });
+      } catch {
+        // Fallback: remove from query cache for offline / static mode
+      }
+      queryClient.setQueryData<BlogPost[]>(['admin', 'blog'], (old) =>
+        old ? old.filter((b) => b.id !== id) : []
+      );
+      queryClient.setQueryData<BlogPost[]>(['blog'], (old) =>
+        old ? old.filter((b) => b.id !== id) : []
+      );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'blog'] });

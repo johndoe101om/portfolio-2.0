@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: portfolio-api
+    env: docker
+    dockerfilePath: src/Portfolio.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        sync: false
