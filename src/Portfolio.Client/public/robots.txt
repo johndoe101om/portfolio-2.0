@@ -85,5 +85,5 @@ User-agent: WhatsApp
 Allow: /
 
 # ── Sitemaps ──
-Sitemap: https://www.codersatyam.com/sitemap.xml
-Sitemap: https://www.codersatyam.com/sitemap-images.xml
+Sitemap: https://codrsatyam.netlify.app/sitemap.xml
+Sitemap: https://codrsatyam.netlify.app/sitemap-images.xml

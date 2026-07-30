@@ -4,35 +4,35 @@
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
   <url>
-    <loc>https://www.codersatyam.com/</loc>
+    <loc>https://codrsatyam.netlify.app/</loc>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/profile.jpg</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/profile.jpg</image:loc>
       <image:caption>Satyam Kumar Chaudhary (also Satyam Kumar, Satyam Chaudhary, Satyam) — Full-Stack Web Developer, Chennai India</image:caption>
       <image:title>Satyam Kumar Chaudhary (Satyam)</image:title>
-      <image:license>https://www.codersatyam.com</image:license>
+      <image:license>https://codrsatyam.netlify.app</image:license>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/project-tutor-finder.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/project-tutor-finder.png</image:loc>
       <image:caption>Tutor Finder — EdTech web application by Satyam Kumar</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/project-college-lake.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/project-college-lake.png</image:loc>
       <image:caption>CollegeLake — College discovery mobile app by Satyam Kumar</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/project-online-signature.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/project-online-signature.png</image:loc>
       <image:caption>Online Signature App by Satyam Kumar</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/project-skill-navigator.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/project-skill-navigator.png</image:loc>
       <image:caption>Skill Navigator App by Satyam Kumar</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-web-designer.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-web-designer.png</image:loc>
       <image:caption>Blog: The best way to become a good web designer — Satyam Kumar</image:caption>
     </image:image>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-coding-logic.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-coding-logic.png</image:loc>
       <image:caption>Blog: Enhancing Coding Logic — Satyam Kumar</image:caption>
     </image:image>
   </url>

@@ -6,12 +6,12 @@
 
   <!-- ── Homepage ───────────────────────────────────────── -->
   <url>
-    <loc>https://www.codersatyam.com/</loc>
+    <loc>https://codrsatyam.netlify.app/</loc>
     <lastmod>2025-07-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/profile.jpg</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/profile.jpg</image:loc>
       <image:caption>Satyam Kumar Chaudhary (Satyam Chaudhary / Satyam Kumar) — Full-Stack Web Developer and DevOps Engineer, Chennai India</image:caption>
       <image:title>Satyam Kumar Chaudhary (Satyam) Profile Photo</image:title>
     </image:image>
@@ -19,77 +19,77 @@
 
   <!-- ── Blog posts (real, crawlable URLs) ─────────────── -->
   <url>
-    <loc>https://www.codersatyam.com/blog/best-way-to-become-good-web-designer</loc>
+    <loc>https://codrsatyam.netlify.app/blog/best-way-to-become-good-web-designer</loc>
     <lastmod>2024-06-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-web-designer.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-web-designer.png</image:loc>
       <image:caption>The best way to become a good web designer — by Satyam Kumar</image:caption>
     </image:image>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/blog/enhancing-coding-logic</loc>
+    <loc>https://codrsatyam.netlify.app/blog/enhancing-coding-logic</loc>
     <lastmod>2024-07-18</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-coding-logic.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-coding-logic.png</image:loc>
       <image:caption>Enhancing Coding Logic — by Satyam Kumar</image:caption>
     </image:image>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/blog/practices-for-personal-and-professional-growth</loc>
+    <loc>https://codrsatyam.netlify.app/blog/practices-for-personal-and-professional-growth</loc>
     <lastmod>2024-09-12</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-growth.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-growth.png</image:loc>
       <image:caption>Practices for Personal and Professional Growth — by Satyam Kumar</image:caption>
     </image:image>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/blog/how-to-crack-any-technical-interview</loc>
+    <loc>https://codrsatyam.netlify.app/blog/how-to-crack-any-technical-interview</loc>
     <lastmod>2024-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/blog-interview.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/blog-interview.png</image:loc>
       <image:caption>How to Crack Any Technical Interview — by Satyam Kumar</image:caption>
     </image:image>
   </url>
 
   <!-- ── Portfolio projects ────────────────────────────── -->
   <url>
-    <loc>https://www.codersatyam.com/projects/tutor-finder</loc>
+    <loc>https://codrsatyam.netlify.app/projects/tutor-finder</loc>
     <lastmod>2024-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
     <image:image>
-      <image:loc>https://www.codersatyam.com/assets/images/project-tutor-finder.png</image:loc>
+      <image:loc>https://codrsatyam.netlify.app/assets/images/project-tutor-finder.png</image:loc>
       <image:caption>Tutor Finder — React and Node.js tutoring platform by Satyam Kumar</image:caption>
     </image:image>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/projects/college-lake</loc>
+    <loc>https://codrsatyam.netlify.app/projects/college-lake</loc>
     <lastmod>2024-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/projects/online-signature</loc>
+    <loc>https://codrsatyam.netlify.app/projects/online-signature</loc>
     <lastmod>2024-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://www.codersatyam.com/projects/skill-navigator</loc>
+    <loc>https://codrsatyam.netlify.app/projects/skill-navigator</loc>
     <lastmod>2024-09-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
@@ -98,7 +98,7 @@
 
   <!-- ── Static about page (no-JS indexable for name variants) ── -->
   <url>
-    <loc>https://www.codersatyam.com/about-satyam-kumar.html</loc>
+    <loc>https://codrsatyam.netlify.app/about-satyam-kumar.html</loc>
     <lastmod>2025-07-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
