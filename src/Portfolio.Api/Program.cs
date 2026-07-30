@@ -43,6 +43,7 @@ builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<IAdminAuthService, AdminAuthService>();
+builder.Services.AddHostedService<HeartbeatService>();
 
 // ── HTTP Clients ──────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient();
