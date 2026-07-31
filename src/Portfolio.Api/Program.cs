@@ -153,7 +153,8 @@ app.Use(async (ctx, next) =>
 app.Use(async (ctx, next) =>
 {
     ctx.Request.EnableBuffering();
-    if (ctx.Request.ContentLength > 1_048_576) // 1 MB
+    var maxLimit = ctx.Request.Path.StartsWithSegments("/api/projects/upload-image") ? 10_485_760 : 2_097_152;
+    if (ctx.Request.ContentLength > maxLimit)
     {
         ctx.Response.StatusCode = 413;
         await ctx.Response.WriteAsync("Request too large.");

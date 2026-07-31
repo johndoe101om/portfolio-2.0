@@ -600,41 +600,73 @@ public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioD
 
     private static ProjectDto ToDto(Project p)
     {
-        var cats = p.ProjectCategories.SelectMany(pc => new[] { pc.Category.Name, pc.Category.DisplayName }).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
-        var techs = p.ProjectTechnologies.Select(pt => pt.Technology.Name).Distinct().ToList();
-        var skills = p.ProjectSkills.Select(ps => ps.Skill.Name).Distinct().ToList();
+        var cats = (p.ProjectCategories ?? Enumerable.Empty<ProjectCategoryMapping>())
+            .Where(pc => pc != null && pc.Category != null)
+            .SelectMany(pc => new[] { pc.Category.Name, pc.Category.DisplayName })
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct()
+            .ToList();
 
-        var images = p.Images.Select(i => new ProjectImageDto(i.Id, i.StoragePath, i.PublicUrl, i.AltText, i.IsThumbnail, i.DisplayOrder, i.Width, i.Height)).ToList();
-        var links = p.Links.Select(l => new ProjectLinkDto(l.Id, l.LinkType, l.Url, l.Label)).ToList();
-        var features = p.Features.Select(f => new ProjectFeatureDto(f.Id, f.Title, f.Description, f.IconClass, f.DisplayOrder)).ToList();
-        var achievements = p.Achievements.Select(a => new ProjectAchievementDto(a.Id, a.Title, a.Description, a.DateAchieved, a.DisplayOrder)).ToList();
+        var techs = (p.ProjectTechnologies ?? Enumerable.Empty<ProjectTechnology>())
+            .Where(pt => pt != null && pt.Technology != null)
+            .Select(pt => pt.Technology.Name)
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Distinct()
+            .ToList();
+
+        var skills = (p.ProjectSkills ?? Enumerable.Empty<ProjectSkill>())
+            .Where(ps => ps != null && ps.Skill != null)
+            .Select(ps => ps.Skill.Name)
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Distinct()
+            .ToList();
+
+        var images = (p.Images ?? Enumerable.Empty<ProjectImage>())
+            .Where(i => i != null)
+            .Select(i => new ProjectImageDto(i.Id, i.StoragePath ?? string.Empty, i.PublicUrl ?? string.Empty, i.AltText, i.IsThumbnail, i.DisplayOrder, i.Width, i.Height))
+            .ToList();
+
+        var links = (p.Links ?? Enumerable.Empty<ProjectLink>())
+            .Where(l => l != null)
+            .Select(l => new ProjectLinkDto(l.Id, l.LinkType ?? "Live", l.Url ?? string.Empty, l.Label))
+            .ToList();
+
+        var features = (p.Features ?? Enumerable.Empty<ProjectFeature>())
+            .Where(f => f != null)
+            .Select(f => new ProjectFeatureDto(f.Id, f.Title ?? string.Empty, f.Description, f.IconClass, f.DisplayOrder))
+            .ToList();
+
+        var achievements = (p.Achievements ?? Enumerable.Empty<ProjectAchievement>())
+            .Where(a => a != null)
+            .Select(a => new ProjectAchievementDto(a.Id, a.Title ?? string.Empty, a.Description, a.DateAchieved, a.DisplayOrder))
+            .ToList();
 
         var durationText = CalculateDuration(p.StartDate, p.EndDate, p.IsCurrentlyWorking);
 
         return new ProjectDto(
             p.Id,
-            p.Slug,
-            p.Title,
-            p.ShortDescription,
-            p.FullDescription,
-            p.Status,
-            p.Visibility,
+            p.Slug ?? string.Empty,
+            p.Title ?? string.Empty,
+            p.ShortDescription ?? string.Empty,
+            p.FullDescription ?? string.Empty,
+            p.Status ?? "Completed",
+            p.Visibility ?? "Public",
             p.IsPublished,
             p.IsFeatured,
             p.IsDeleted,
-            p.ResumeCategory,
-            p.ExperienceType,
+            p.ResumeCategory ?? "Web",
+            p.ExperienceType ?? "Professional",
             p.StartDate,
             p.EndDate,
             p.IsCurrentlyWorking,
             durationText,
-            p.ReadmeMarkdown,
-            p.MetaTitle,
-            p.MetaDescription,
-            p.MetaKeywords,
-            p.OgImageUrl,
+            p.ReadmeMarkdown ?? string.Empty,
+            p.MetaTitle ?? string.Empty,
+            p.MetaDescription ?? string.Empty,
+            p.MetaKeywords ?? string.Empty,
+            p.OgImageUrl ?? string.Empty,
             p.DisplayOrder,
-            p.ThumbnailUrl,
+            p.ThumbnailUrl ?? string.Empty,
             p.CreatedAt,
             p.UpdatedAt,
             cats,
