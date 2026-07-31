@@ -1,102 +1,102 @@
 import { useEffect, useRef } from 'react';
-
-interface Star {
-  x: number; y: number; r: number;
-  o: number; s: number; d: number;
-}
+import * as THREE from 'three';
 
 export function StarCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
-
-    let rafId: number;
-    let stars: Star[] = [];
-    let lastTime = 0;
+    const container = containerRef.current;
+    if (!container) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    function init() {
-      if (!canvas) return;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+    let width = container.clientWidth || window.innerWidth;
+    let height = container.clientHeight || window.innerHeight;
 
-      const starCount = width < 768 ? 30 : 60;
-      stars = Array.from({ length: starCount }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        r: Math.random() * 1.2 + 0.3,
-        o: Math.random(),
-        s: Math.random() * 0.004 + 0.001,
-        d: Math.random() > 0.5 ? 1 : -1,
-      }));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    container.appendChild(renderer.domElement);
+
+    const geometry = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+
+    // 2,000 particles spread across 3D space
+    for (let i = 0; i < 2000; i++) {
+      vertices.push(
+        THREE.MathUtils.randFloatSpread(20),
+        THREE.MathUtils.randFloatSpread(20),
+        THREE.MathUtils.randFloatSpread(20)
+      );
     }
 
-    function renderFrame() {
-      if (!canvas || !ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < stars.length; i++) {
-        const s = stars[i];
-        if (!prefersReducedMotion) {
-          s.o += s.s * s.d;
-          if (s.o >= 1 || s.o <= 0) s.d *= -1;
-        }
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0,212,255,${s.o * 0.5})`;
-        ctx.fill();
-      }
-    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
 
-    function loop(timestamp: number) {
-      if (document.hidden) {
-        rafId = requestAnimationFrame(loop);
-        return;
-      }
+    const material = new THREE.PointsMaterial({
+      color: 0x00d4ff,
+      size: 0.05,
+      transparent: true,
+      opacity: 0.8,
+    });
 
-      // Throttle to ~30 FPS (33ms interval)
-      if (timestamp - lastTime >= 33) {
-        lastTime = timestamp;
-        renderFrame();
-      }
+    const points = new THREE.Points(geometry, material);
+    scene.add(points);
 
+    camera.position.z = 10;
+
+    let rafId: number;
+
+    const animate = () => {
       if (!prefersReducedMotion) {
-        rafId = requestAnimationFrame(loop);
+        points.rotation.x += 0.001;
+        points.rotation.y += 0.001;
       }
-    }
-
-    init();
-    renderFrame();
-
-    if (!prefersReducedMotion) {
-      rafId = requestAnimationFrame(loop);
-    }
-
-    const onResize = () => {
-      init();
-      renderFrame();
+      renderer.render(scene, camera);
+      rafId = requestAnimationFrame(animate);
     };
 
-    window.addEventListener('resize', onResize, { passive: true });
+    animate();
+
+    const handleResize = () => {
+      if (!container) return;
+      width = container.clientWidth || window.innerWidth;
+      height = container.clientHeight || window.innerHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', handleResize);
+
+      geometry.dispose();
+      material.dispose();
+      renderer.dispose();
+
+      if (renderer.domElement && renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={containerRef}
       aria-hidden="true"
       style={{
-        position: 'fixed', inset: 0,
-        pointerEvents: 'none', zIndex: 0,
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 0,
+        background: 'transparent',
       }}
     />
   );

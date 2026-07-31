@@ -35,7 +35,13 @@ export function AboutSection() {
       <div className={styles.bio}>
         <div className={styles.avatarWrap}>
           <div className={styles.avatarRing} aria-hidden="true" />
-          <div className={styles.avatar}>🧑‍💻</div>
+          <div className={styles.avatar}>
+            <img
+              src={profile?.profileImageUrl ?? '/assets/images/profile.jpg'}
+              alt={profile?.fullName ?? 'Satyam Kumar'}
+              className={styles.avatarImg}
+            />
+          </div>
         </div>
         <div className={styles.bioContent}>
           <p className={styles.bioText}>{profile?.aboutText}</p>

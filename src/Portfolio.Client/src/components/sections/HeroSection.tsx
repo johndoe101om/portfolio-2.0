@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { Linkedin, Instagram, MessageCircle } from 'lucide-react';
 import styles from './HeroSection.module.css';
 import { useProfile } from '../../api/queries';
+import type { SectionId } from '../../types';
 
 const ROLES = ['Full-Stack Developer', 'DevOps Engineer', 'Cloud Architect', 'App Developer'];
 
-import type { SectionId } from '../../types';
-interface Props { onNavigate: (s: SectionId) => void; }
+interface Props {
+  onNavigate: (s: SectionId) => void;
+}
 
 export function HeroSection({ onNavigate }: Props) {
   const { data: profile } = useProfile();
@@ -44,7 +47,8 @@ export function HeroSection({ onNavigate }: Props) {
         </p>
 
         <p className={styles.desc}>
-          {profile?.aboutText ?? 'Spirited software engineer with a love for clean code and bold ideas. I craft scalable, user-first applications and enjoy turning complex problems into elegant solutions.'}
+          {profile?.aboutText ??
+            'Spirited software engineer with a love for clean code and bold ideas. I craft scalable, user-first applications and enjoy turning complex problems into elegant solutions.'}
         </p>
 
         <div className={styles.actions}>
@@ -57,15 +61,45 @@ export function HeroSection({ onNavigate }: Props) {
         </div>
 
         <div className={styles.socials}>
-          <a href="https://www.linkedin.com/in/satyam-webdeveloper/" target="_blank" rel="noopener noreferrer" aria-label="in - LinkedIn" className={styles.socialLink}>in</a>
-          <a href="https://www.instagram.com/be_stranger7964/" target="_blank" rel="noopener noreferrer" aria-label="ig - Instagram" className={styles.socialLink}>ig</a>
-          <a href="https://wa.me/qr/TZU5O77ZT4MGN1" target="_blank" rel="noopener noreferrer" aria-label="wa - WhatsApp" className={styles.socialLink}>wa</a>
+          <a
+            href="https://www.linkedin.com/in/satyam-webdeveloper/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="LinkedIn"
+            className={styles.socialLink}
+          >
+            <Linkedin size={18} />
+          </a>
+          <a
+            href="https://www.instagram.com/be_stranger7964/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+            className={styles.socialLink}
+          >
+            <Instagram size={18} />
+          </a>
+          <a
+            href="https://wa.me/qr/TZU5O77ZT4MGN1"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="WhatsApp"
+            className={styles.socialLink}
+          >
+            <MessageCircle size={18} />
+          </a>
         </div>
       </div>
 
       <div className={styles.visual}>
         <div className={styles.avatarRing} aria-hidden="true" />
-        <div className={styles.avatar}>🧑‍💻</div>
+        <div className={styles.avatar}>
+          <img
+            src={profile?.profileImageUrl ?? '/assets/images/profile.jpg'}
+            alt={profile?.fullName ?? 'Satyam Kumar'}
+            className={styles.avatarImg}
+          />
+        </div>
         <div className={styles.floatCard} style={{ top: '-18px', right: '-18px' }}>
           <span className={styles.floatVal}>40+</span>
           <span className={styles.floatLbl}>Projects</span>

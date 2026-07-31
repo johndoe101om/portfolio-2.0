@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { BookOpenText, Briefcase, FileText, Home, Mail, User } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import type { SectionId } from '../../types';
 import type { LucideIcon } from 'lucide-react';
+import { useProfile } from '../../api/queries';
 
 interface NavDef {
   id: SectionId;
@@ -24,6 +26,10 @@ interface Props {
 }
 
 export function Sidebar({ active, onNavigate }: Props) {
+  const { data: profile } = useProfile();
+  const [imgError, setImgError] = useState(false);
+  const profileImageUrl = profile?.profileImageUrl ?? '/assets/images/profile.jpg';
+
   return (
     <nav className={styles.sidebar} aria-label="Main navigation">
       <button
@@ -31,7 +37,16 @@ export function Sidebar({ active, onNavigate }: Props) {
         onClick={() => onNavigate('hero')}
         aria-label="Go to home"
       >
-        SK
+        {!imgError ? (
+          <img
+            src={profileImageUrl}
+            alt={profile?.fullName ?? 'Satyam Kumar'}
+            className={styles.logoImg}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          'SK'
+        )}
       </button>
 
       <ul className={styles.navList} role="list">
