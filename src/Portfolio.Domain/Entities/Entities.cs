@@ -88,26 +88,140 @@ public class Experience : BaseEntity
     public int DisplayOrder { get; set; }
 }
 
-/// <summary>Portfolio project.</summary>
+/// <summary>Master Technology dictionary entity.</summary>
+public class Technology : BaseEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string? IconClass { get; set; }
+    public string? BadgeColor { get; set; }
+}
+
+/// <summary>Master Category entity.</summary>
+public class Category : BaseEntity
+{
+    public string Name { get; set; } = string.Empty; // e.g. webdesign, webapp
+    public string DisplayName { get; set; } = string.Empty; // e.g. Web Design, Web App
+}
+
+/// <summary>Portfolio project master entity.</summary>
 public class Project : BaseEntity
 {
     public string Slug { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string ImageUrl { get; set; } = string.Empty;
-    public string CategoriesJson { get; set; } = "[]"; // JSON array of category strings
-    public string? LiveUrl { get; set; }
+    public string ShortDescription { get; set; } = string.Empty;
+    public string FullDescription { get; set; } = string.Empty;
+    public string Status { get; set; } = "Completed"; // Completed | Planning | In Progress | Draft | Archived
+    public string Visibility { get; set; } = "Public"; // Public | Private | Unlisted
+    public bool IsPublished { get; set; } = true;
+    public bool IsFeatured { get; set; } = false;
+    public bool IsDeleted { get; set; } = false; // Soft delete
+    public string ResumeCategory { get; set; } = "Web"; // Web | Mobile | AI/Cloud | DevOps | Game | Other
+    public string ExperienceType { get; set; } = "Professional"; // Professional | Personal | OpenSource | Client | Academic
+    public DateTimeOffset? StartDate { get; set; }
+    public DateTimeOffset? EndDate { get; set; }
+    public bool IsCurrentlyWorking { get; set; } = false;
+    public string ReadmeMarkdown { get; set; } = string.Empty;
+    public string? MetaTitle { get; set; }
+    public string? MetaDescription { get; set; }
+    public string? MetaKeywords { get; set; }
+    public string? OgImageUrl { get; set; }
     public int DisplayOrder { get; set; }
 
-    public ICollection<ProjectTechnology> Technologies { get; set; } = new List<ProjectTechnology>();
+    // Media & Thumbnail helper
+    public string ThumbnailUrl { get; set; } = "/assets/images/placeholder.png";
+
+    // Relational Collections
+    public ICollection<ProjectImage> Images { get; set; } = new List<ProjectImage>();
+    public ICollection<ProjectTechnology> ProjectTechnologies { get; set; } = new List<ProjectTechnology>();
+    public ICollection<ProjectCategoryMapping> ProjectCategories { get; set; } = new List<ProjectCategoryMapping>();
+    public ICollection<ProjectSkill> ProjectSkills { get; set; } = new List<ProjectSkill>();
+    public ICollection<ProjectLink> Links { get; set; } = new List<ProjectLink>();
+    public ICollection<ProjectFeature> Features { get; set; } = new List<ProjectFeature>();
+    public ICollection<ProjectAchievement> Achievements { get; set; } = new List<ProjectAchievement>();
 }
 
-/// <summary>Technology used in a project.</summary>
+/// <summary>Relational table connecting Project and Technology.</summary>
 public class ProjectTechnology : BaseEntity
 {
     public int ProjectId { get; set; }
     public Project Project { get; set; } = null!;
-    public string Name { get; set; } = string.Empty;
+    public int TechnologyId { get; set; }
+    public Technology Technology { get; set; } = null!;
+}
+
+/// <summary>Relational table connecting Project and Category.</summary>
+public class ProjectCategoryMapping : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public int CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
+}
+
+/// <summary>Relational table connecting Project and Skill.</summary>
+public class ProjectSkill : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public int SkillId { get; set; }
+    public Skill Skill { get; set; } = null!;
+}
+
+/// <summary>Gallery and Thumbnail image stored in Supabase Storage.</summary>
+public class ProjectImage : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public string StoragePath { get; set; } = string.Empty;
+    public string PublicUrl { get; set; } = string.Empty;
+    public string? AltText { get; set; }
+    public bool IsThumbnail { get; set; } = false;
+    public int DisplayOrder { get; set; } = 0;
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+}
+
+/// <summary>External project links.</summary>
+public class ProjectLink : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public string LinkType { get; set; } = "Live"; // Live | GitHub | GitLab | Bitbucket | Documentation | YouTube | PlayStore | AppStore | Figma | CaseStudy | Blog
+    public string Url { get; set; } = string.Empty;
+    public string? Label { get; set; }
+}
+
+/// <summary>Dynamic project key feature.</summary>
+public class ProjectFeature : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? IconClass { get; set; }
+    public int DisplayOrder { get; set; } = 0;
+}
+
+/// <summary>Dynamic project achievement or milestone.</summary>
+public class ProjectAchievement : BaseEntity
+{
+    public int ProjectId { get; set; }
+    public Project Project { get; set; } = null!;
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DateTimeOffset? DateAchieved { get; set; }
+    public int DisplayOrder { get; set; } = 0;
+}
+
+/// <summary>Audit Log for all project mutations.</summary>
+public class AuditLog : BaseEntity
+{
+    public string EntityName { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty; // Create | Update | Delete | SoftDelete | Restore | Duplicate | Publish | Unpublish | Archive | Feature
+    public string PerformedBy { get; set; } = "Admin";
+    public string ChangesJson { get; set; } = "{}";
+    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>Blog post.</summary>

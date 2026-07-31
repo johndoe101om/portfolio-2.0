@@ -16,7 +16,16 @@ public class PortfolioDbContext : DbContext
     public DbSet<Education> Educations => Set<Education>();
     public DbSet<Experience> Experiences => Set<Experience>();
     public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectImage> ProjectImages => Set<ProjectImage>();
+    public DbSet<Technology> Technologies => Set<Technology>();
     public DbSet<ProjectTechnology> ProjectTechnologies => Set<ProjectTechnology>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<ProjectCategoryMapping> ProjectCategories => Set<ProjectCategoryMapping>();
+    public DbSet<ProjectSkill> ProjectSkills => Set<ProjectSkill>();
+    public DbSet<ProjectLink> ProjectLinks => Set<ProjectLink>();
+    public DbSet<ProjectFeature> ProjectFeatures => Set<ProjectFeature>();
+    public DbSet<ProjectAchievement> ProjectAchievements => Set<ProjectAchievement>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
@@ -45,14 +54,26 @@ public class PortfolioDbContext : DbContext
             e.HasIndex(s => new { s.Name, s.Category }).IsUnique();
         });
 
-        // Project
+        // Category & Technology
+        mb.Entity<Category>(e => e.HasIndex(c => c.Name).IsUnique());
+        mb.Entity<Technology>(e => e.HasIndex(t => t.Name).IsUnique());
+
+        // Project Relational Mappings
         mb.Entity<Project>(e =>
         {
             e.HasIndex(p => p.Slug).IsUnique();
-            e.HasMany(p => p.Technologies)
-             .WithOne(t => t.Project)
-             .HasForeignKey(t => t.ProjectId)
-             .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(p => p.Status);
+            e.HasIndex(p => p.IsPublished);
+            e.HasIndex(p => p.IsFeatured);
+            e.HasIndex(p => p.IsDeleted);
+
+            e.HasMany(p => p.Images).WithOne(i => i.Project).HasForeignKey(i => i.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.ProjectTechnologies).WithOne(t => t.Project).HasForeignKey(t => t.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.ProjectCategories).WithOne(c => c.Project).HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.ProjectSkills).WithOne(s => s.Project).HasForeignKey(s => s.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.Links).WithOne(l => l.Project).HasForeignKey(l => l.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.Features).WithOne(f => f.Project).HasForeignKey(f => f.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(p => p.Achievements).WithOne(a => a.Project).HasForeignKey(a => a.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // BlogPost
@@ -101,6 +122,8 @@ public class PortfolioDbContext : DbContext
 
     private static void SeedData(ModelBuilder mb)
     {
+        var seedTime = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
         // Profile
         mb.Entity<Profile>().HasData(new Profile
         {
@@ -121,62 +144,102 @@ public class PortfolioDbContext : DbContext
             CvUrl = "https://drive.google.com/file/d/1P28ffSgcD7xEWpu02UgWMAV1b3kp_fyJ/view?usp=sharing",
             MapLat = 43.053454,
             MapLng = -76.144508,
-            CreatedAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            UpdatedAt = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = seedTime,
+            UpdatedAt = seedTime,
         });
 
         // Social Links
         mb.Entity<SocialLink>().HasData(
-            new SocialLink { Id = 1, Platform = "WhatsApp",  Url = "https://wa.me/qr/TZU5O77ZT4MGN1",                 IconClass = "bi bi-whatsapp",  DisplayOrder = 1, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new SocialLink { Id = 2, Platform = "Instagram", Url = "https://www.instagram.com/be_stranger7964/",       IconClass = "bi bi-instagram", DisplayOrder = 2, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new SocialLink { Id = 3, Platform = "LinkedIn",  Url = "https://www.linkedin.com/in/satyam-webdeveloper/", IconClass = "bi bi-linkedin",  DisplayOrder = 3, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) }
+            new SocialLink { Id = 1, Platform = "WhatsApp",  Url = "https://wa.me/qr/TZU5O77ZT4MGN1",                 IconClass = "bi bi-whatsapp",  DisplayOrder = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new SocialLink { Id = 2, Platform = "Instagram", Url = "https://www.instagram.com/be_stranger7964/",       IconClass = "bi bi-instagram", DisplayOrder = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new SocialLink { Id = 3, Platform = "LinkedIn",  Url = "https://www.linkedin.com/in/satyam-webdeveloper/", IconClass = "bi bi-linkedin",  DisplayOrder = 3, CreatedAt = seedTime, UpdatedAt = seedTime }
         );
 
         // Statistics
         mb.Entity<Statistic>().HasData(
-            new Statistic { Id = 1, IconClass = "bi bi-palette",       Value = 2,  Label = "DevOps Projects", DisplayOrder = 1, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Statistic { Id = 2, IconClass = "bi bi-laptop",        Value = 12, Label = "Web Designs",     DisplayOrder = 2, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Statistic { Id = 3, IconClass = "bi bi-award",         Value = 26, Label = "Web Development",  DisplayOrder = 3, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Statistic { Id = 4, IconClass = "bi bi-journal-check", Value = 40, Label = "Projects Done",   DisplayOrder = 4, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) }
+            new Statistic { Id = 1, IconClass = "bi bi-palette",       Value = 2,  Label = "DevOps Projects", DisplayOrder = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Statistic { Id = 2, IconClass = "bi bi-laptop",        Value = 12, Label = "Web Designs",     DisplayOrder = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Statistic { Id = 3, IconClass = "bi bi-award",         Value = 26, Label = "Web Development",  DisplayOrder = 3, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Statistic { Id = 4, IconClass = "bi bi-journal-check", Value = 40, Label = "Projects Done",   DisplayOrder = 4, CreatedAt = seedTime, UpdatedAt = seedTime }
         );
 
         // Skills
         mb.Entity<Skill>().HasData(
-            new Skill { Id = 1, Name = "Web Design",    Percentage = 75, Category = "technical", DisplayOrder = 1, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Skill { Id = 2, Name = "Web Developer", Percentage = 90, Category = "technical", DisplayOrder = 2, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Skill { Id = 3, Name = "Cloud",         Percentage = 85, Category = "technical", DisplayOrder = 3, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Skill { Id = 4, Name = "Hindi",   Category = "language", Percentage = 95, LanguageLevel = "Expert",       FilledDots = 9,  TotalDots = 10, DisplayOrder = 1, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Skill { Id = 5, Name = "English", Category = "language", Percentage = 80, LanguageLevel = "Intermediate",  FilledDots = 8,  TotalDots = 10, DisplayOrder = 2, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) }
+            new Skill { Id = 1, Name = "Web Design",    Percentage = 75, Category = "technical", DisplayOrder = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Skill { Id = 2, Name = "Web Developer", Percentage = 90, Category = "technical", DisplayOrder = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Skill { Id = 3, Name = "Cloud",         Percentage = 85, Category = "technical", DisplayOrder = 3, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Skill { Id = 4, Name = "Hindi",   Category = "language", Percentage = 95, LanguageLevel = "Expert",       FilledDots = 9,  TotalDots = 10, DisplayOrder = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Skill { Id = 5, Name = "English", Category = "language", Percentage = 80, LanguageLevel = "Intermediate",  FilledDots = 8,  TotalDots = 10, DisplayOrder = 2, CreatedAt = seedTime, UpdatedAt = seedTime }
         );
 
-        // Projects (categories stored as JSON)
+        // Categories
+        mb.Entity<Category>().HasData(
+            new Category { Id = 1, Name = "webdesign", DisplayName = "Web Design", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Category { Id = 2, Name = "webapp", DisplayName = "Web App", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Category { Id = 3, Name = "mobiledesign", DisplayName = "Mobile", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Category { Id = 4, Name = "gamedesign", DisplayName = "Game", CreatedAt = seedTime, UpdatedAt = seedTime }
+        );
+
+        // Technologies
+        mb.Entity<Technology>().HasData(
+            new Technology { Id = 1, Name = "React", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 2, Name = "Node.js", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 3, Name = "MongoDB", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 4, Name = "React Native", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 5, Name = "Firebase", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 6, Name = "JavaScript", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 7, Name = "Canvas API", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 8, Name = "PHP", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 9, Name = "TailwindCSS", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 10, Name = "Unity", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 11, Name = "C#", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 12, Name = "WebGL", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 13, Name = "SCSS", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Technology { Id = 14, Name = "Framer Motion", CreatedAt = seedTime, UpdatedAt = seedTime }
+        );
+
+        // Projects
         mb.Entity<Project>().HasData(
-            new Project { Id = 1, Slug = "tutor-finder",       Title = "Tutor Finder",          Description = "A platform connecting students with tutors based on subject, location, and availability.", ImageUrl = "/assets/images/project-tutor-finder.png",      CategoriesJson = "[\"webdesign\",\"webapp\"]",            DisplayOrder = 1, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Project { Id = 2, Slug = "college-lake",       Title = "CollegeLake",           Description = "A mobile-friendly college discovery and comparison application.",                        ImageUrl = "/assets/images/project-college-lake.png",       CategoriesJson = "[\"mobiledesign\",\"webapp\"]",         DisplayOrder = 2, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Project { Id = 3, Slug = "online-signature",   Title = "Online Signature",      Description = "A web application allowing users to create and save digital signatures.",                ImageUrl = "/assets/images/project-online-signature.png",   CategoriesJson = "[\"webdesign\",\"webapp\"]",            DisplayOrder = 3, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Project { Id = 4, Slug = "skill-navigator",    Title = "Skill Navigator App",   Description = "An application that helps users assess and plan their technology skill development.",    ImageUrl = "/assets/images/project-skill-navigator.png",    CategoriesJson = "[\"webdesign\"]",                      DisplayOrder = 4, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Project { Id = 5, Slug = "raja-mantri",        Title = "Raja Mantri Chor Sipahi", Description = "Digital version of the classic Indian card game with online multiplayer.",            ImageUrl = "/assets/images/project-game.png",                CategoriesJson = "[\"gamedesign\",\"webapp\"]",           DisplayOrder = 5, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new Project { Id = 6, Slug = "detailed-portfolio", Title = "Detailed Portfolio",    Description = "A mobile-first personal portfolio with animated transitions.",                           ImageUrl = "/assets/images/project-portfolio.png",          CategoriesJson = "[\"mobiledesign\"]",                   DisplayOrder = 6, CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) }
+            new Project { Id = 1, Slug = "tutor-finder", Title = "Tutor Finder", ShortDescription = "A platform connecting students with tutors based on subject, location, and availability.", FullDescription = "Tutor Finder is a high-performance web application designed to bridge the gap between tutors and students.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = true, ResumeCategory = "Web", ExperienceType = "Professional", StartDate = seedTime, EndDate = seedTime.AddMonths(5), ReadmeMarkdown = "# Tutor Finder\n\nFull stack platform built with React, Node.js, and MongoDB.", DisplayOrder = 1, ThumbnailUrl = "/assets/images/project-tutor-finder.png", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Project { Id = 2, Slug = "college-lake", Title = "CollegeLake", ShortDescription = "A mobile-friendly college discovery and comparison application.", FullDescription = "CollegeLake provides comprehensive institute search, degree comparison, and student reviews.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = true, ResumeCategory = "Mobile", ExperienceType = "Personal", StartDate = seedTime, EndDate = seedTime.AddMonths(3), ReadmeMarkdown = "# CollegeLake\n\nMobile-first college research portal.", DisplayOrder = 2, ThumbnailUrl = "/assets/images/project-college-lake.png", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Project { Id = 3, Slug = "online-signature", Title = "Online Signature", ShortDescription = "A web application allowing users to create and save digital signatures.", FullDescription = "Canvas-powered digital signature generator with instant PNG export.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = false, ResumeCategory = "Web", ExperienceType = "Client", StartDate = seedTime, EndDate = seedTime.AddMonths(2), ReadmeMarkdown = "# Online Signature Generator", DisplayOrder = 3, ThumbnailUrl = "/assets/images/project-online-signature.png", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Project { Id = 4, Slug = "skill-navigator", Title = "Skill Navigator App", ShortDescription = "An application that helps users assess and plan their technology skill development.", FullDescription = "Interactive tech roadmap builder.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = false, ResumeCategory = "Web", ExperienceType = "Personal", StartDate = seedTime, EndDate = seedTime.AddMonths(4), ReadmeMarkdown = "# Skill Navigator", DisplayOrder = 4, ThumbnailUrl = "/assets/images/project-skill-navigator.png", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Project { Id = 5, Slug = "raja-mantri", Title = "Raja Mantri Chor Sipahi", ShortDescription = "Digital version of the classic Indian card game with online multiplayer.", FullDescription = "Unity-powered digital card game.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = true, ResumeCategory = "Game", ExperienceType = "Personal", StartDate = seedTime, EndDate = seedTime.AddMonths(6), ReadmeMarkdown = "# Raja Mantri Game", DisplayOrder = 5, ThumbnailUrl = "/assets/images/project-game.png", CreatedAt = seedTime, UpdatedAt = seedTime },
+            new Project { Id = 6, Slug = "detailed-portfolio", Title = "Detailed Portfolio", ShortDescription = "A mobile-first personal portfolio with animated transitions.", FullDescription = "Responsive interactive portfolio.", Status = "Completed", Visibility = "Public", IsPublished = true, IsFeatured = false, ResumeCategory = "Web", ExperienceType = "Personal", StartDate = seedTime, EndDate = seedTime.AddMonths(2), ReadmeMarkdown = "# Personal Portfolio", DisplayOrder = 6, ThumbnailUrl = "/assets/images/project-portfolio.png", CreatedAt = seedTime, UpdatedAt = seedTime }
         );
 
-        // Project technologies
+        // ProjectCategories
+        mb.Entity<ProjectCategoryMapping>().HasData(
+            new ProjectCategoryMapping { Id = 1, ProjectId = 1, CategoryId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 2, ProjectId = 1, CategoryId = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 3, ProjectId = 2, CategoryId = 3, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 4, ProjectId = 2, CategoryId = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 5, ProjectId = 3, CategoryId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 6, ProjectId = 3, CategoryId = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 7, ProjectId = 4, CategoryId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 8, ProjectId = 5, CategoryId = 4, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 9, ProjectId = 5, CategoryId = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectCategoryMapping { Id = 10, ProjectId = 6, CategoryId = 3, CreatedAt = seedTime, UpdatedAt = seedTime }
+        );
+
+        // ProjectTechnologies
         mb.Entity<ProjectTechnology>().HasData(
-            new ProjectTechnology { Id = 1, ProjectId = 1, Name = "React", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 2, ProjectId = 1, Name = "Node.js", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 3, ProjectId = 1, Name = "MongoDB", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 4, ProjectId = 2, Name = "React Native", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 5, ProjectId = 2, Name = "Firebase", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 6, ProjectId = 3, Name = "JavaScript", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 7, ProjectId = 3, Name = "Canvas API", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 8, ProjectId = 3, Name = "PHP", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 9, ProjectId = 4, Name = "React", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 10, ProjectId = 4, Name = "TailwindCSS", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 11, ProjectId = 5, Name = "Unity", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 12, ProjectId = 5, Name = "C#", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 13, ProjectId = 5, Name = "WebGL", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 14, ProjectId = 6, Name = "React", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 15, ProjectId = 6, Name = "SCSS", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) },
-            new ProjectTechnology { Id = 16, ProjectId = 6, Name = "Framer Motion", CreatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero), UpdatedAt = new DateTimeOffset(2024,1,1,0,0,0,TimeSpan.Zero) }
+            new ProjectTechnology { Id = 1, ProjectId = 1, TechnologyId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 2, ProjectId = 1, TechnologyId = 2, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 3, ProjectId = 1, TechnologyId = 3, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 4, ProjectId = 2, TechnologyId = 4, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 5, ProjectId = 2, TechnologyId = 5, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 6, ProjectId = 3, TechnologyId = 6, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 7, ProjectId = 3, TechnologyId = 7, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 8, ProjectId = 3, TechnologyId = 8, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 9, ProjectId = 4, TechnologyId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 10, ProjectId = 4, TechnologyId = 9, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 11, ProjectId = 5, TechnologyId = 10, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 12, ProjectId = 5, TechnologyId = 11, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 13, ProjectId = 5, TechnologyId = 12, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 14, ProjectId = 6, TechnologyId = 1, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 15, ProjectId = 6, TechnologyId = 13, CreatedAt = seedTime, UpdatedAt = seedTime },
+            new ProjectTechnology { Id = 16, ProjectId = 6, TechnologyId = 14, CreatedAt = seedTime, UpdatedAt = seedTime }
         );
 
         // Services

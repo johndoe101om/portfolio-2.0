@@ -214,8 +214,8 @@ public class AdminEndpointTests(PortfolioWebApplicationFactory factory)
     private static ProjectMutationDto ValidProjectPayload() => new()
     {
         Title = "Admin Created Project",
-        Description = "A project created through the protected admin API.",
-        ImageUrl = "/assets/images/placeholder.png",
+        ShortDescription = "A project created through the protected admin API.",
+        ThumbnailUrl = "/assets/images/placeholder.png",
         Categories = ["webdesign"],
         Technologies = ["React", "ASP.NET Core"],
         DisplayOrder = 99,

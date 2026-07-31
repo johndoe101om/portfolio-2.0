@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Portfolio.Application.DTOs;
 using Portfolio.Application.Interfaces;
+using Portfolio.Domain.Entities;
 using Portfolio.Infrastructure.Data;
 using System.Security.Cryptography;
 using System.Text;
@@ -84,111 +85,593 @@ public class SkillService(PortfolioDbContext db) : ISkillService
 }
 
 // ── ProjectService ────────────────────────────────────────────────────────────
-public class ProjectService(PortfolioDbContext db) : IProjectService
+public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioDbContext db) : IProjectService
 {
     public async Task<IEnumerable<ProjectDto>> GetProjectsAsync(string? category = null, CancellationToken ct = default)
     {
-        var query = db.Projects.AsNoTracking()
-            .Include(p => p.Technologies)
-            .OrderBy(p => p.DisplayOrder);
-
-        var projects = await query.ToListAsync(ct);
-
-        var dtos = projects.Select(p => ToDto(p));
-
-        if (!string.IsNullOrWhiteSpace(category) && category != "*")
+        var filter = new ProjectListFilterDto
         {
-            dtos = dtos.Where(p => p.Categories.Contains(category));
-        }
-
-        return dtos.ToList();
+            Category = category,
+            Page = 1,
+            PageSize = 1000,
+            IncludeUnpublished = false
+        };
+        var paged = await repo.GetPagedAsync(filter, ct);
+        return paged.Items.Select(ToDto);
     }
 
-    public async Task<ProjectDto?> GetBySlugAsync(string slug, CancellationToken ct = default)
+    public async Task<PagedResultDto<ProjectDto>> GetPagedProjectsAsync(ProjectListFilterDto filter, CancellationToken ct = default)
     {
-        var p = await db.Projects.AsNoTracking()
-            .Include(p => p.Technologies)
-            .FirstOrDefaultAsync(p => p.Slug == slug, ct);
+        var paged = await repo.GetPagedAsync(filter, ct);
+        return new PagedResultDto<ProjectDto>
+        {
+            Items = paged.Items.Select(ToDto),
+            TotalCount = paged.TotalCount,
+            Page = paged.Page,
+            PageSize = paged.PageSize
+        };
+    }
+
+    public async Task<ProjectDto?> GetBySlugAsync(string slug, bool includeUnpublished = false, CancellationToken ct = default)
+    {
+        var p = await repo.GetBySlugAsync(slug, includeUnpublished, ct);
         return p is null ? null : ToDto(p);
     }
 
-    public async Task<ProjectDto> CreateAsync(ProjectMutationDto dto, CancellationToken ct = default)
+    public async Task<ProjectDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var project = new Portfolio.Domain.Entities.Project
+        var p = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        return p is null ? null : ToDto(p);
+    }
+
+    public async Task<ProjectDto> CreateAsync(ProjectMutationDto dto, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        var slug = string.IsNullOrWhiteSpace(dto.Slug)
+            ? await GenerateSlugAsync(dto.Title, null, ct)
+            : await GenerateSlugAsync(dto.Slug, null, ct);
+
+        var project = new Project
         {
-            Slug = await GenerateUniqueProjectSlugAsync(dto.Title, null, ct),
+            Slug = slug,
             Title = dto.Title.Trim(),
-            Description = dto.Description.Trim(),
-            ImageUrl = NormalizeUrl(dto.ImageUrl, "/assets/images/placeholder.png"),
-            CategoriesJson = JsonSerializer.Serialize(NormalizeList(dto.Categories)),
-            LiveUrl = string.IsNullOrWhiteSpace(dto.LiveUrl) ? null : dto.LiveUrl.Trim(),
-            DisplayOrder = dto.DisplayOrder,
-            Technologies = NormalizeList(dto.Technologies)
-                .Select(name => new Portfolio.Domain.Entities.ProjectTechnology { Name = name })
-                .ToList(),
+            ShortDescription = dto.ShortDescription.Trim(),
+            FullDescription = dto.FullDescription?.Trim() ?? string.Empty,
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "Completed" : dto.Status.Trim(),
+            Visibility = string.IsNullOrWhiteSpace(dto.Visibility) ? "Public" : dto.Visibility.Trim(),
+            IsPublished = dto.IsPublished,
+            IsFeatured = dto.IsFeatured,
+            ResumeCategory = string.IsNullOrWhiteSpace(dto.ResumeCategory) ? "Web" : dto.ResumeCategory.Trim(),
+            ExperienceType = string.IsNullOrWhiteSpace(dto.ExperienceType) ? "Professional" : dto.ExperienceType.Trim(),
+            StartDate = dto.StartDate,
+            EndDate = dto.EndDate,
+            IsCurrentlyWorking = dto.IsCurrentlyWorking,
+            ReadmeMarkdown = dto.ReadmeMarkdown ?? string.Empty,
+            MetaTitle = dto.MetaTitle,
+            MetaDescription = dto.MetaDescription,
+            MetaKeywords = dto.MetaKeywords,
+            OgImageUrl = dto.OgImageUrl,
+            DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : (await repo.GetMaxDisplayOrderAsync(ct) + 1),
+            ThumbnailUrl = string.IsNullOrWhiteSpace(dto.ThumbnailUrl) ? "/assets/images/placeholder.png" : dto.ThumbnailUrl.Trim()
         };
 
-        db.Projects.Add(project);
-        await db.SaveChangesAsync(ct);
-        return ToDto(project);
+        await MapRelationsAsync(project, dto, ct);
+        await repo.AddAsync(project, ct);
+
+        var audit = new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = project.Slug,
+            Action = "Create",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { project.Title, project.Slug, project.Status, project.IsPublished }),
+            Timestamp = DateTimeOffset.UtcNow
+        };
+        await repo.AddAuditLogAsync(audit, ct);
+
+        await uow.SaveChangesAsync(ct);
+
+        var created = await repo.GetDetailsByIdAsync(project.Id, includeDeleted: true, ct);
+        return ToDto(created!);
     }
 
-    public async Task<ProjectDto?> UpdateAsync(int id, ProjectMutationDto dto, CancellationToken ct = default)
+    public async Task<ProjectDto?> UpdateAsync(int id, ProjectMutationDto dto, string performedBy = "Admin", CancellationToken ct = default)
     {
-        var project = await db.Projects
-            .Include(p => p.Technologies)
-            .FirstOrDefaultAsync(p => p.Id == id, ct);
+        var project = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (project is null) return null;
 
-        if (project is null)
-            return null;
+        var newSlug = string.IsNullOrWhiteSpace(dto.Slug)
+            ? await GenerateSlugAsync(dto.Title, id, ct)
+            : await GenerateSlugAsync(dto.Slug, id, ct);
 
-        project.Slug = await GenerateUniqueProjectSlugAsync(dto.Title, id, ct);
+        project.Slug = newSlug;
         project.Title = dto.Title.Trim();
-        project.Description = dto.Description.Trim();
-        project.ImageUrl = NormalizeUrl(dto.ImageUrl, "/assets/images/placeholder.png");
-        project.CategoriesJson = JsonSerializer.Serialize(NormalizeList(dto.Categories));
-        project.LiveUrl = string.IsNullOrWhiteSpace(dto.LiveUrl) ? null : dto.LiveUrl.Trim();
+        project.ShortDescription = dto.ShortDescription.Trim();
+        project.FullDescription = dto.FullDescription?.Trim() ?? string.Empty;
+        project.Status = string.IsNullOrWhiteSpace(dto.Status) ? project.Status : dto.Status.Trim();
+        project.Visibility = string.IsNullOrWhiteSpace(dto.Visibility) ? project.Visibility : dto.Visibility.Trim();
+        project.IsPublished = dto.IsPublished;
+        project.IsFeatured = dto.IsFeatured;
+        project.ResumeCategory = string.IsNullOrWhiteSpace(dto.ResumeCategory) ? project.ResumeCategory : dto.ResumeCategory.Trim();
+        project.ExperienceType = string.IsNullOrWhiteSpace(dto.ExperienceType) ? project.ExperienceType : dto.ExperienceType.Trim();
+        project.StartDate = dto.StartDate;
+        project.EndDate = dto.EndDate;
+        project.IsCurrentlyWorking = dto.IsCurrentlyWorking;
+        project.ReadmeMarkdown = dto.ReadmeMarkdown ?? string.Empty;
+        project.MetaTitle = dto.MetaTitle;
+        project.MetaDescription = dto.MetaDescription;
+        project.MetaKeywords = dto.MetaKeywords;
+        project.OgImageUrl = dto.OgImageUrl;
         project.DisplayOrder = dto.DisplayOrder;
+        if (!string.IsNullOrWhiteSpace(dto.ThumbnailUrl))
+        {
+            project.ThumbnailUrl = dto.ThumbnailUrl.Trim();
+        }
 
-        db.ProjectTechnologies.RemoveRange(project.Technologies);
-        project.Technologies = NormalizeList(dto.Technologies)
-            .Select(name => new Portfolio.Domain.Entities.ProjectTechnology { ProjectId = id, Name = name })
-            .ToList();
+        // Clear and rebuild relational collections
+        project.ProjectTechnologies.Clear();
+        project.ProjectCategories.Clear();
+        project.ProjectSkills.Clear();
+        project.Images.Clear();
+        project.Links.Clear();
+        project.Features.Clear();
+        project.Achievements.Clear();
 
-        await db.SaveChangesAsync(ct);
-        return ToDto(project);
+        await MapRelationsAsync(project, dto, ct);
+        repo.Update(project);
+
+        var audit = new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = "Update",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { project.Title, project.Slug, project.Status, project.IsPublished }),
+            Timestamp = DateTimeOffset.UtcNow
+        };
+        await repo.AddAuditLogAsync(audit, ct);
+
+        await uow.SaveChangesAsync(ct);
+
+        var updated = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        return ToDto(updated!);
     }
 
-    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(int id, bool permanent = false, string performedBy = "Admin", CancellationToken ct = default)
     {
-        var project = await db.Projects
-            .Include(p => p.Technologies)
-            .FirstOrDefaultAsync(p => p.Id == id, ct);
+        var project = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (project is null) return false;
 
-        if (project is null)
-            return false;
+        if (permanent)
+        {
+            repo.Delete(project);
+        }
+        else
+        {
+            project.IsDeleted = true;
+            repo.Update(project);
+        }
 
-        db.ProjectTechnologies.RemoveRange(project.Technologies);
-        db.Projects.Remove(project);
-        await db.SaveChangesAsync(ct);
+        var audit = new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = permanent ? "Delete" : "SoftDelete",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { project.Title, Permanent = permanent }),
+            Timestamp = DateTimeOffset.UtcNow
+        };
+        await repo.AddAuditLogAsync(audit, ct);
+
+        await uow.SaveChangesAsync(ct);
         return true;
     }
 
-    private static ProjectDto ToDto(Portfolio.Domain.Entities.Project p)
+    public async Task<ProjectDto?> DuplicateAsync(int id, string performedBy = "Admin", CancellationToken ct = default)
     {
-        var cats = JsonSerializer.Deserialize<IEnumerable<string>>(p.CategoriesJson) ?? [];
-        var techs = p.Technologies.Select(t => t.Name);
-        return new ProjectDto(p.Id, p.Slug, p.Title, p.Description, p.ImageUrl,
-            cats, p.LiveUrl, techs, p.DisplayOrder);
+        var source = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (source is null) return null;
+
+        var copyDto = new ProjectMutationDto
+        {
+            Title = $"{source.Title} (Copy)",
+            Slug = await GenerateSlugAsync($"{source.Slug}-copy", null, ct),
+            ShortDescription = source.ShortDescription,
+            FullDescription = source.FullDescription,
+            Status = "Draft",
+            Visibility = source.Visibility,
+            IsPublished = false,
+            IsFeatured = false,
+            ResumeCategory = source.ResumeCategory,
+            ExperienceType = source.ExperienceType,
+            StartDate = null, // Everything except dates
+            EndDate = null,
+            IsCurrentlyWorking = false,
+            ReadmeMarkdown = source.ReadmeMarkdown,
+            MetaTitle = source.MetaTitle,
+            MetaDescription = source.MetaDescription,
+            MetaKeywords = source.MetaKeywords,
+            OgImageUrl = source.OgImageUrl,
+            DisplayOrder = await repo.GetMaxDisplayOrderAsync(ct) + 1,
+            ThumbnailUrl = source.ThumbnailUrl,
+            Categories = source.ProjectCategories.Select(pc => pc.Category.DisplayName).ToList(),
+            Technologies = source.ProjectTechnologies.Select(pt => pt.Technology.Name).ToList(),
+            Skills = source.ProjectSkills.Select(ps => ps.Skill.Name).ToList(),
+            Images = source.Images.Select(i => new ProjectImageDto(0, i.StoragePath, i.PublicUrl, i.AltText, i.IsThumbnail, i.DisplayOrder, i.Width, i.Height)).ToList(),
+            Links = source.Links.Select(l => new ProjectLinkDto(0, l.LinkType, l.Url, l.Label)).ToList(),
+            Features = source.Features.Select(f => new ProjectFeatureDto(0, f.Title, f.Description, f.IconClass, f.DisplayOrder)).ToList(),
+            Achievements = source.Achievements.Select(a => new ProjectAchievementDto(0, a.Title, a.Description, null, a.DisplayOrder)).ToList()
+        };
+
+        var created = await CreateAsync(copyDto, performedBy, ct);
+
+        var audit = new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = created.Id.ToString(),
+            Action = "Duplicate",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { SourceId = id, ClonedSlug = created.Slug }),
+            Timestamp = DateTimeOffset.UtcNow
+        };
+        await repo.AddAuditLogAsync(audit, ct);
+        await uow.SaveChangesAsync(ct);
+
+        return created;
     }
 
-    private async Task<string> GenerateUniqueProjectSlugAsync(string title, int? existingId, CancellationToken ct)
+    public async Task<ProjectDto?> PublishAsync(int id, bool publish, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        var p = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (p is null) return null;
+
+        p.IsPublished = publish;
+        repo.Update(p);
+
+        await repo.AddAuditLogAsync(new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = publish ? "Publish" : "Unpublish",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { p.Title, IsPublished = publish }),
+            Timestamp = DateTimeOffset.UtcNow
+        }, ct);
+
+        await uow.SaveChangesAsync(ct);
+        return ToDto(p);
+    }
+
+    public async Task<ProjectDto?> ArchiveAsync(int id, bool archive, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        var p = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (p is null) return null;
+
+        p.Status = archive ? "Archived" : "Completed";
+        repo.Update(p);
+
+        await repo.AddAuditLogAsync(new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = archive ? "Archive" : "Unarchive",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { p.Title, p.Status }),
+            Timestamp = DateTimeOffset.UtcNow
+        }, ct);
+
+        await uow.SaveChangesAsync(ct);
+        return ToDto(p);
+    }
+
+    public async Task<ProjectDto?> RestoreAsync(int id, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        var p = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (p is null) return null;
+
+        p.IsDeleted = false;
+        repo.Update(p);
+
+        await repo.AddAuditLogAsync(new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = "Restore",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { p.Title }),
+            Timestamp = DateTimeOffset.UtcNow
+        }, ct);
+
+        await uow.SaveChangesAsync(ct);
+        return ToDto(p);
+    }
+
+    public async Task<ProjectDto?> ToggleFeaturedAsync(int id, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        var p = await repo.GetDetailsByIdAsync(id, includeDeleted: true, ct);
+        if (p is null) return null;
+
+        p.IsFeatured = !p.IsFeatured;
+        repo.Update(p);
+
+        await repo.AddAuditLogAsync(new AuditLog
+        {
+            EntityName = "Project",
+            EntityId = id.ToString(),
+            Action = "Feature",
+            PerformedBy = performedBy,
+            ChangesJson = JsonSerializer.Serialize(new { p.Title, p.IsFeatured }),
+            Timestamp = DateTimeOffset.UtcNow
+        }, ct);
+
+        await uow.SaveChangesAsync(ct);
+        return ToDto(p);
+    }
+
+    public async Task<bool> ReorderProjectsAsync(IEnumerable<int> orderedIds, CancellationToken ct = default)
+    {
+        var orderMap = orderedIds.Select((id, index) => new { id, index }).ToDictionary(x => x.id, x => x.index + 1);
+        var projects = await db.Projects.Where(p => orderMap.Keys.Contains(p.Id)).ToListAsync(ct);
+
+        foreach (var p in projects)
+        {
+            if (orderMap.TryGetValue(p.Id, out var newOrder))
+            {
+                p.DisplayOrder = newOrder;
+            }
+        }
+
+        await uow.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> ExecuteBulkActionAsync(BulkActionRequestDto dto, string performedBy = "Admin", CancellationToken ct = default)
+    {
+        if (dto.ProjectIds == null || dto.ProjectIds.Count == 0) return false;
+
+        foreach (var id in dto.ProjectIds)
+        {
+            switch (dto.Action.ToLower().Trim())
+            {
+                case "publish":
+                    await PublishAsync(id, true, performedBy, ct);
+                    break;
+                case "unpublish":
+                    await PublishAsync(id, false, performedBy, ct);
+                    break;
+                case "archive":
+                    await ArchiveAsync(id, true, performedBy, ct);
+                    break;
+                case "restore":
+                    await RestoreAsync(id, performedBy, ct);
+                    break;
+                case "feature":
+                    await ToggleFeaturedAsync(id, performedBy, ct);
+                    break;
+                case "delete":
+                    await DeleteAsync(id, permanent: false, performedBy, ct);
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    public async Task<ProjectDashboardStatsDto> GetDashboardStatsAsync(CancellationToken ct = default)
+    {
+        var stats = await repo.GetDashboardStatsAsync(ct);
+        var recents = await repo.GetPagedAsync(new ProjectListFilterDto { Page = 1, PageSize = 5, SortBy = "Newest" }, ct);
+        stats.RecentProjects = recents.Items.Select(ToDto);
+        return stats;
+    }
+
+    public async Task<IEnumerable<AuditLogDto>> GetAuditLogsAsync(string? entityId = null, CancellationToken ct = default)
+    {
+        var logs = await repo.GetAuditLogsAsync(entityId, ct);
+        return logs.Select(l => new AuditLogDto(l.Id, l.EntityName, l.EntityId, l.Action, l.PerformedBy, l.ChangesJson, l.Timestamp));
+    }
+
+    public async Task<(IEnumerable<string> Categories, IEnumerable<string> Technologies, IEnumerable<string> Skills)> GetMetadataOptionsAsync(CancellationToken ct = default)
+    {
+        var cats = (await repo.GetCategoriesAsync(ct)).Select(c => c.DisplayName);
+        var techs = (await repo.GetTechnologiesAsync(ct)).Select(t => t.Name);
+        var skills = (await repo.GetSkillsAsync(ct)).Select(s => s.Name);
+        return (cats, techs, skills);
+    }
+
+    private async Task MapRelationsAsync(Project p, ProjectMutationDto dto, CancellationToken ct)
+    {
+        // Categories
+        if (dto.Categories != null && dto.Categories.Count > 0)
+        {
+            var dbCats = await db.Categories.ToListAsync(ct);
+            foreach (var catName in dto.Categories.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()))
+            {
+                var normName = catName.ToLower().Replace(" ", "");
+                var existingCat = dbCats.FirstOrDefault(c => c.Name.ToLower() == normName || c.DisplayName.ToLower() == catName.ToLower());
+                if (existingCat is null)
+                {
+                    existingCat = new Category { Name = normName, DisplayName = catName };
+                    db.Categories.Add(existingCat);
+                    await db.SaveChangesAsync(ct);
+                    dbCats.Add(existingCat);
+                }
+                p.ProjectCategories.Add(new ProjectCategoryMapping { Project = p, Category = existingCat });
+            }
+        }
+
+        // Technologies
+        if (dto.Technologies != null && dto.Technologies.Count > 0)
+        {
+            var dbTechs = await db.Technologies.ToListAsync(ct);
+            foreach (var techName in dto.Technologies.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()))
+            {
+                var existingTech = dbTechs.FirstOrDefault(t => t.Name.ToLower() == techName.ToLower());
+                if (existingTech is null)
+                {
+                    existingTech = new Technology { Name = techName };
+                    db.Technologies.Add(existingTech);
+                    await db.SaveChangesAsync(ct);
+                    dbTechs.Add(existingTech);
+                }
+                p.ProjectTechnologies.Add(new ProjectTechnology { Project = p, Technology = existingTech });
+            }
+        }
+
+        // Skills
+        if (dto.Skills != null && dto.Skills.Count > 0)
+        {
+            var dbSkills = await db.Skills.ToListAsync(ct);
+            foreach (var skillName in dto.Skills.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()))
+            {
+                var existingSkill = dbSkills.FirstOrDefault(s => s.Name.ToLower() == skillName.ToLower());
+                if (existingSkill != null)
+                {
+                    p.ProjectSkills.Add(new ProjectSkill { Project = p, Skill = existingSkill });
+                }
+            }
+        }
+
+        // Images
+        if (dto.Images != null)
+        {
+            foreach (var img in dto.Images)
+            {
+                p.Images.Add(new ProjectImage
+                {
+                    Project = p,
+                    StoragePath = img.StoragePath ?? string.Empty,
+                    PublicUrl = img.PublicUrl ?? string.Empty,
+                    AltText = img.AltText,
+                    IsThumbnail = img.IsThumbnail,
+                    DisplayOrder = img.DisplayOrder,
+                    Width = img.Width,
+                    Height = img.Height
+                });
+            }
+        }
+
+        // Links
+        if (dto.Links != null)
+        {
+            foreach (var link in dto.Links.Where(l => !string.IsNullOrWhiteSpace(l.Url)))
+            {
+                p.Links.Add(new ProjectLink
+                {
+                    Project = p,
+                    LinkType = string.IsNullOrWhiteSpace(link.LinkType) ? "Live" : link.LinkType.Trim(),
+                    Url = link.Url.Trim(),
+                    Label = link.Label
+                });
+            }
+        }
+
+        // Features
+        if (dto.Features != null)
+        {
+            foreach (var f in dto.Features.Where(f => !string.IsNullOrWhiteSpace(f.Title)))
+            {
+                p.Features.Add(new ProjectFeature
+                {
+                    Project = p,
+                    Title = f.Title.Trim(),
+                    Description = f.Description,
+                    IconClass = f.IconClass,
+                    DisplayOrder = f.DisplayOrder
+                });
+            }
+        }
+
+        // Achievements
+        if (dto.Achievements != null)
+        {
+            foreach (var a in dto.Achievements.Where(a => !string.IsNullOrWhiteSpace(a.Title)))
+            {
+                p.Achievements.Add(new ProjectAchievement
+                {
+                    Project = p,
+                    Title = a.Title.Trim(),
+                    Description = a.Description,
+                    DateAchieved = a.DateAchieved,
+                    DisplayOrder = a.DisplayOrder
+                });
+            }
+        }
+    }
+
+    private static ProjectDto ToDto(Project p)
+    {
+        var cats = p.ProjectCategories.SelectMany(pc => new[] { pc.Category.Name, pc.Category.DisplayName }).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
+        var techs = p.ProjectTechnologies.Select(pt => pt.Technology.Name).Distinct().ToList();
+        var skills = p.ProjectSkills.Select(ps => ps.Skill.Name).Distinct().ToList();
+
+        var images = p.Images.Select(i => new ProjectImageDto(i.Id, i.StoragePath, i.PublicUrl, i.AltText, i.IsThumbnail, i.DisplayOrder, i.Width, i.Height)).ToList();
+        var links = p.Links.Select(l => new ProjectLinkDto(l.Id, l.LinkType, l.Url, l.Label)).ToList();
+        var features = p.Features.Select(f => new ProjectFeatureDto(f.Id, f.Title, f.Description, f.IconClass, f.DisplayOrder)).ToList();
+        var achievements = p.Achievements.Select(a => new ProjectAchievementDto(a.Id, a.Title, a.Description, a.DateAchieved, a.DisplayOrder)).ToList();
+
+        var durationText = CalculateDuration(p.StartDate, p.EndDate, p.IsCurrentlyWorking);
+
+        return new ProjectDto(
+            p.Id,
+            p.Slug,
+            p.Title,
+            p.ShortDescription,
+            p.FullDescription,
+            p.Status,
+            p.Visibility,
+            p.IsPublished,
+            p.IsFeatured,
+            p.IsDeleted,
+            p.ResumeCategory,
+            p.ExperienceType,
+            p.StartDate,
+            p.EndDate,
+            p.IsCurrentlyWorking,
+            durationText,
+            p.ReadmeMarkdown,
+            p.MetaTitle,
+            p.MetaDescription,
+            p.MetaKeywords,
+            p.OgImageUrl,
+            p.DisplayOrder,
+            p.ThumbnailUrl,
+            p.CreatedAt,
+            p.UpdatedAt,
+            cats,
+            techs,
+            skills,
+            images,
+            links,
+            features,
+            achievements
+        );
+    }
+
+    private static string CalculateDuration(DateTimeOffset? start, DateTimeOffset? end, bool currentlyWorking)
+    {
+        if (!start.HasValue) return "N/A";
+        var endDate = currentlyWorking ? DateTimeOffset.UtcNow : (end ?? DateTimeOffset.UtcNow);
+
+        var totalDays = (endDate - start.Value).TotalDays;
+        if (totalDays < 30) return "< 1 Month";
+
+        var months = (int)Math.Round(totalDays / 30.4375);
+        if (months < 12) return $"{months} Month{(months > 1 ? "s" : "")}";
+
+        var years = months / 12;
+        var remMonths = months % 12;
+        if (remMonths == 0) return $"{years} Year{(years > 1 ? "s" : "")}";
+        return $"{years} Year{(years > 1 ? "s" : "")} {remMonths} Mo{(remMonths > 1 ? "s" : "")}";
+    }
+
+    private async Task<string> GenerateSlugAsync(string title, int? existingId, CancellationToken ct)
     {
         var baseSlug = ToSlug(title);
+        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = "project";
         var slug = baseSlug;
         var suffix = 2;
 
-        while (await db.Projects.AnyAsync(p => p.Slug == slug && (!existingId.HasValue || p.Id != existingId.Value), ct))
+        while (await repo.SlugExistsAsync(slug, existingId, ct))
         {
             slug = $"{baseSlug}-{suffix}";
             suffix++;
@@ -209,7 +692,7 @@ public class ProjectService(PortfolioDbContext db) : IProjectService
                 builder.Append(c);
                 lastWasDash = false;
             }
-            else if (!lastWasDash)
+            else if ((c == ' ' || c == '-' || c == '_') && !lastWasDash && builder.Length > 0)
             {
                 builder.Append('-');
                 lastWasDash = true;

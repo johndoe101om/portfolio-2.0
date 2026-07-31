@@ -8,6 +8,7 @@ using Portfolio.Infrastructure.Data;
 using Portfolio.Infrastructure.Services;
 using Portfolio.Application.Interfaces;
 using Portfolio.Infrastructure.Email;
+using Portfolio.Infrastructure.Repositories;
 using Portfolio.Api.Middleware;
 using Portfolio.Api.HealthChecks;
 
@@ -33,11 +34,15 @@ builder.Services.AddDbContext<PortfolioDbContext>(opts =>
     {
         npgsql.MigrationsAssembly("Portfolio.Infrastructure");
         npgsql.EnableRetryOnFailure(3);
-    }));
+    })
+    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 // ── Application services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
+builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IStorageService, SupabaseStorageService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IContactService, ContactService>();
@@ -116,10 +121,19 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
-    if (db.Database.IsRelational())
-        await db.Database.MigrateAsync();
-    else
+    try
+    {
+        if (db.Database.IsRelational())
+            await db.Database.MigrateAsync();
+        else
+            await db.Database.EnsureCreatedAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(ex, "Migration warning during startup. Ensured database creation.");
         await db.Database.EnsureCreatedAsync();
+    }
 }
 
 // ── Security headers ──────────────────────────────────────────────────────────

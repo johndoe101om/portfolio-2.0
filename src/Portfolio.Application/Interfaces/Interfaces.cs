@@ -21,10 +21,22 @@ public interface ISkillService
 public interface IProjectService
 {
     Task<IEnumerable<ProjectDto>> GetProjectsAsync(string? category = null, CancellationToken ct = default);
-    Task<ProjectDto?> GetBySlugAsync(string slug, CancellationToken ct = default);
-    Task<ProjectDto> CreateAsync(ProjectMutationDto dto, CancellationToken ct = default);
-    Task<ProjectDto?> UpdateAsync(int id, ProjectMutationDto dto, CancellationToken ct = default);
-    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<PagedResultDto<ProjectDto>> GetPagedProjectsAsync(ProjectListFilterDto filter, CancellationToken ct = default);
+    Task<ProjectDto?> GetBySlugAsync(string slug, bool includeUnpublished = false, CancellationToken ct = default);
+    Task<ProjectDto?> GetByIdAsync(int id, CancellationToken ct = default);
+    Task<ProjectDto> CreateAsync(ProjectMutationDto dto, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> UpdateAsync(int id, ProjectMutationDto dto, string performedBy = "Admin", CancellationToken ct = default);
+    Task<bool> DeleteAsync(int id, bool permanent = false, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> DuplicateAsync(int id, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> PublishAsync(int id, bool publish, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> ArchiveAsync(int id, bool archive, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> RestoreAsync(int id, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDto?> ToggleFeaturedAsync(int id, string performedBy = "Admin", CancellationToken ct = default);
+    Task<bool> ReorderProjectsAsync(IEnumerable<int> orderedIds, CancellationToken ct = default);
+    Task<bool> ExecuteBulkActionAsync(BulkActionRequestDto dto, string performedBy = "Admin", CancellationToken ct = default);
+    Task<ProjectDashboardStatsDto> GetDashboardStatsAsync(CancellationToken ct = default);
+    Task<IEnumerable<AuditLogDto>> GetAuditLogsAsync(string? entityId = null, CancellationToken ct = default);
+    Task<(IEnumerable<string> Categories, IEnumerable<string> Technologies, IEnumerable<string> Skills)> GetMetadataOptionsAsync(CancellationToken ct = default);
 }
 
 public interface IBlogService

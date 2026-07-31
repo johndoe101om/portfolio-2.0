@@ -16,27 +16,38 @@ import {
   Search,
   Trash2,
   X,
+  Upload,
+  Copy,
+  Eye,
+  Star,
+  Archive,
+  RotateCcw,
+  LayoutGrid,
+  List,
+  Layers,
+  Sparkles,
+  Link as LinkIcon,
+  CheckCircle,
+  FileText,
+  Clock,
+  Shield,
+  UploadCloud,
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { PROJECTS, BLOG_POSTS } from '../../api/staticData';
-import type { BlogPost, Project, ProjectCategory } from '../../types';
+import type {
+  BlogPost,
+  Project,
+  ProjectImage,
+  ProjectLink,
+  ProjectFeature,
+  ProjectAchievement,
+  ProjectDashboardStats,
+  AuditLog,
+} from '../../types';
 import styles from './AdminPanel.module.css';
 
 const SESSION_KEY = 'portfolio_admin_session';
-
-const CATEGORIES: { value: ProjectCategory; label: string }[] = [
-  { value: 'webdesign', label: 'Web Design' },
-  { value: 'webapp', label: 'Web App' },
-  { value: 'mobiledesign', label: 'Mobile' },
-  { value: 'gamedesign', label: 'Game' },
-];
-
-const CATEGORY_LABEL: Record<ProjectCategory, string> = {
-  webdesign: 'Web Design',
-  webapp: 'Web App',
-  mobiledesign: 'Mobile',
-  gamedesign: 'Game',
-};
 
 type AdminSession = {
   token: string;
@@ -47,70 +58,22 @@ type AdminSession = {
 type Toast = { message: string; type: 'success' | 'error' | 'info' };
 
 const loginSchema = z.object({
-  email: z.string().email('Enter the admin email'),
-  password: z.string().min(1, 'Enter the admin password'),
-});
-
-const projectSchema = z.object({
-  title: z.string().min(2, 'Title is required'),
-  description: z.string().min(10, 'Description is too short'),
-  imageUrl: z.string().min(1, 'Image URL is required'),
-  categories: z.array(z.string()).min(1, 'Select at least one category'),
-  technologies: z.string().min(1, 'Add at least one technology'),
-  liveUrl: z.string().url('Enter a valid URL').optional().or(z.literal('')),
-  displayOrder: z.coerce.number().int().min(0),
-});
-
-const blogSchema = z.object({
-  title: z.string().min(2, 'Title is required'),
-  excerpt: z.string().min(10, 'Excerpt is too short'),
-  content: z.string().optional(),
-  imageUrl: z.string().min(1, 'Image URL is required'),
-  publishedAt: z.string().min(1, 'Publish date is required'),
-  author: z.string().min(2, 'Author is required'),
-  tags: z.string().optional(),
-  isPublished: z.boolean(),
+  email: z.string().email('Enter a valid admin email'),
+  password: z.string().min(1, 'Enter password'),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
-type ProjectValues = z.infer<typeof projectSchema>;
-type BlogValues = z.infer<typeof blogSchema>;
-type DeleteTarget = { type: 'project' | 'blog'; id: number } | null;
-
-const defaultProjectValues: ProjectValues = {
-  title: '',
-  description: '',
-  imageUrl: '/assets/images/placeholder.png',
-  categories: [],
-  technologies: '',
-  liveUrl: '',
-  displayOrder: 0,
-};
-
-const defaultBlogValues: BlogValues = {
-  title: '',
-  excerpt: '',
-  content: '',
-  imageUrl: '/assets/images/placeholder.png',
-  publishedAt: toDateTimeLocal(new Date().toISOString()),
-  author: 'Satyam Kumar',
-  tags: '',
-  isPublished: true,
-};
 
 function readSession(): AdminSession | null {
   if (typeof window === 'undefined') return null;
-
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-
     const parsed = JSON.parse(raw) as AdminSession;
     if (!parsed.token || new Date(parsed.expiresAt).getTime() <= Date.now()) {
       window.localStorage.removeItem(SESSION_KEY);
       return null;
     }
-
     return parsed;
   } catch {
     window.localStorage.removeItem(SESSION_KEY);
@@ -118,738 +81,923 @@ function readSession(): AdminSession | null {
   }
 }
 
-function saveSession(session: AdminSession | null) {
-  if (typeof window === 'undefined') return;
-
-  if (session) {
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } else {
-    window.localStorage.removeItem(SESSION_KEY);
-  }
-}
-
-function authHeaders(token: string) {
-  return { Authorization: `Bearer ${token}` };
-}
-
-function splitCsv(value?: string) {
-  return (value ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function toDateTimeLocal(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-
-  const offsetMs = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
-}
-
-function fromDateTimeLocal(value: string) {
-  return new Date(value).toISOString();
-}
-
-function toProjectPayload(values: ProjectValues) {
-  return {
-    title: values.title,
-    description: values.description,
-    imageUrl: values.imageUrl,
-    categories: values.categories,
-    technologies: splitCsv(values.technologies),
-    liveUrl: values.liveUrl || null,
-    displayOrder: values.displayOrder,
-  };
-}
-
-function toBlogPayload(values: BlogValues) {
-  return {
-    title: values.title,
-    excerpt: values.excerpt,
-    content: values.content || '',
-    imageUrl: values.imageUrl,
-    publishedAt: fromDateTimeLocal(values.publishedAt),
-    author: values.author,
-    tags: splitCsv(values.tags),
-    isPublished: values.isPublished,
-  };
-}
-
 export function AdminPanel() {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<AdminSession | null>(() => readSession());
   const [activeTab, setActiveTab] = useState<'projects' | 'blog'>('projects');
-  const [toast, setToast] = useState<Toast | null>(null);
-  const [search, setSearch] = useState('');
-  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
-  const [editingBlogId, setEditingBlogId] = useState<number | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('*');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [techFilter, setTechFilter] = useState('');
+  const [sortBy, setSortBy] = useState('Newest');
+
+  // Selection for Bulk Actions
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Modals
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(true);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [modalTab, setModalTab] = useState<'basic' | 'media' | 'timeline' | 'tech' | 'links' | 'features' | 'achievements' | 'readme' | 'seo'>('basic');
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<number | null>(null);
+  const [loginError, setLoginError] = useState('');
+
+  // Toast
+  const [toast, setToast] = useState<Toast | null>(null);
+
+  const showToast = (message: string, type: Toast['type'] = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // Form State for Project Mutation
+  const [formData, setFormData] = useState({
+    title: '',
+    slug: '',
+    shortDescription: '',
+    fullDescription: '',
+    status: 'Completed',
+    visibility: 'Public',
+    isPublished: true,
+    isFeatured: false,
+    resumeCategory: 'Web',
+    experienceType: 'Professional',
+    startDate: '',
+    endDate: '',
+    isCurrentlyWorking: false,
+    readmeMarkdown: '# Project Overview\n\nDetailed project documentation.',
+    metaTitle: '',
+    metaDescription: '',
+    metaKeywords: '',
+    ogImageUrl: '',
+    displayOrder: 0,
+    thumbnailUrl: '/assets/images/placeholder.png',
+    categories: [] as string[],
+    technologies: [] as string[],
+    technologiesText: '',
+    skills: [] as string[],
+    images: [] as ProjectImage[],
+    links: [] as ProjectLink[],
+    features: [] as ProjectFeature[],
+    achievements: [] as ProjectAchievement[],
+  });
+
+  const authHeaders = useMemo(() => {
+    return session?.token ? { Authorization: `Bearer ${session.token}` } : {};
+  }, [session]);
+
+  // Query Dashboard Stats
+  const { data: stats } = useQuery<ProjectDashboardStats>({
+    queryKey: ['admin-project-stats'],
+    queryFn: async () => {
+      if (!session?.token) {
+        return {
+          totalProjects: PROJECTS.length,
+          publishedProjects: PROJECTS.length,
+          draftProjects: 0,
+          featuredProjects: 2,
+          archivedProjects: 0,
+          totalTechnologies: 12,
+          totalCategories: 4,
+          recentProjects: PROJECTS as unknown as Project[],
+        };
+      }
+      try {
+        const res = await apiClient.get('/api/projects/dashboard-stats', { headers: authHeaders });
+        return res.data;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(session?.token),
+  });
+
+  // Query Projects
+  const { data: projectsData, isLoading: projectsLoading, refetch: refetchProjects } = useQuery({
+    queryKey: ['admin-projects', searchQuery, categoryFilter, statusFilter, techFilter, sortBy],
+    queryFn: async () => {
+      if (!session?.token) return PROJECTS as unknown as Project[];
+      try {
+        const res = await apiClient.get('/api/projects/paged', {
+          headers: authHeaders,
+          params: {
+            search: searchQuery || undefined,
+            category: categoryFilter !== '*' ? categoryFilter : undefined,
+            status: statusFilter || undefined,
+            technology: techFilter || undefined,
+            sortBy,
+            includeUnpublished: true,
+            includeDeleted: false,
+            page: 1,
+            pageSize: 100,
+          },
+        });
+        return (res.data?.items ?? res.data ?? []) as Project[];
+      } catch {
+        try {
+          const fallbackRes = await apiClient.get('/api/projects', { headers: authHeaders });
+          return (fallbackRes.data?.items ?? fallbackRes.data ?? []) as Project[];
+        } catch {
+          return PROJECTS as unknown as Project[];
+        }
+      }
+    },
+    enabled: Boolean(session?.token),
+  });
+
+  const projectsList = (projectsData ?? []) as Project[];
+
+  // Query Blog Posts
+  const { data: blogPostsData } = useQuery({
+    queryKey: ['admin-blog-posts'],
+    queryFn: async () => {
+      if (!session?.token) return BLOG_POSTS as unknown as BlogPost[];
+      try {
+        const res = await apiClient.get('/api/blog', { headers: authHeaders });
+        return (res.data ?? BLOG_POSTS) as BlogPost[];
+      } catch {
+        return BLOG_POSTS as unknown as BlogPost[];
+      }
+    },
+    enabled: Boolean(session?.token),
+  });
+  const blogList = (blogPostsData ?? BLOG_POSTS) as BlogPost[];
+
+  // Login Handler
   const loginForm = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'johndoeunique101@gmail.com', password: '' },
+    defaultValues: { email: '', password: '' },
   });
-
-  const projectForm = useForm<ProjectValues>({
-    resolver: zodResolver(projectSchema),
-    defaultValues: defaultProjectValues,
-  });
-
-  const blogForm = useForm<BlogValues>({
-    resolver: zodResolver(blogSchema),
-    defaultValues: defaultBlogValues,
-  });
-
-  const token = session?.token ?? '';
-
-  const projectsQuery = useQuery<Project[]>({
-    queryKey: ['admin', 'projects'],
-    enabled: Boolean(token),
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get('/api/projects', { headers: authHeaders(token) });
-        return res.data ?? PROJECTS;
-      } catch {
-        return PROJECTS;
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-
-  const blogQuery = useQuery<BlogPost[]>({
-    queryKey: ['admin', 'blog'],
-    enabled: Boolean(token),
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get('/api/blog', {
-          params: { page: 1, pageSize: 50, includeUnpublished: true },
-          headers: authHeaders(token),
-        });
-        return res.data ?? BLOG_POSTS;
-      } catch {
-        return BLOG_POSTS;
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-
-  const projects = projectsQuery.data ?? [];
-  const posts = blogQuery.data ?? [];
-
-  const filteredProjects = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return projects;
-    return projects.filter((project) =>
-      [project.title, project.description, project.slug].some((value) =>
-        value.toLowerCase().includes(term)
-      )
-    );
-  }, [projects, search]);
-
-  const filteredPosts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return posts;
-    return posts.filter((post) =>
-      [post.title, post.excerpt, post.slug, post.author].some((value) =>
-        value.toLowerCase().includes(term)
-      )
-    );
-  }, [posts, search]);
-
-  function showToast(message: string, type: Toast['type'] = 'success') {
-    setToast({ message, type });
-    window.setTimeout(() => setToast(null), 3000);
-  }
-
-  function handleSessionExpired() {
-    setSession(null);
-    saveSession(null);
-    showToast('Admin session expired', 'error');
-  }
 
   const loginMutation = useMutation({
-    mutationFn: async (values: LoginValues) => {
-      const res = await apiClient.post('/api/godmode/login', values);
-      return res.data as AdminSession;
+    mutationFn: async (val: LoginValues) => {
+      const res = await apiClient.post('/api/godmode/login', val);
+      return res.data;
     },
-    onSuccess: (nextSession) => {
-      setSession(nextSession);
-      saveSession(nextSession);
-      showToast('Signed in to godmode');
+    onSuccess: (data) => {
+      const newSession: AdminSession = {
+        token: data.token,
+        email: data.email,
+        expiresAt: data.expiresAt,
+      };
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(newSession));
+      setSession(newSession);
+      showToast('Welcome back, Admin!');
     },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (err: Error) => {
+      showToast(err.message || 'Login failed', 'error');
+    },
   });
 
-  const createProject = useMutation({
-    mutationFn: async (values: ProjectValues) => {
-      const res = await apiClient.post('/api/projects', toProjectPayload(values), {
-        headers: authHeaders(token),
-      });
-      return res.data as Project;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
-      await queryClient.invalidateQueries({ queryKey: ['projects'] });
-      resetProjectForm();
-      showToast('Project created');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  const updateProject = useMutation({
-    mutationFn: async ({ id, values }: { id: number; values: ProjectValues }) => {
-      const res = await apiClient.put(`/api/projects/${id}`, toProjectPayload(values), {
-        headers: authHeaders(token),
-      });
-      return res.data as Project;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
-      await queryClient.invalidateQueries({ queryKey: ['projects'] });
-      resetProjectForm();
-      showToast('Project updated');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  const deleteProject = useMutation({
-    mutationFn: async (id: number) => {
-      try {
-        await apiClient.delete(`/api/projects/${id}`, { headers: authHeaders(token) });
-      } catch {
-        // Fallback: remove from query cache for offline / static mode
-      }
-      queryClient.setQueryData<Project[]>(['admin', 'projects'], (old) =>
-        old ? old.filter((p) => p.id !== id) : []
-      );
-      queryClient.setQueryData<Project[]>(['projects'], (old) =>
-        old ? old.filter((p) => p.id !== id) : []
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'projects'] });
-      await queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setDeleteTarget(null);
-      showToast('Project deleted', 'info');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  const createBlog = useMutation({
-    mutationFn: async (values: BlogValues) => {
-      const res = await apiClient.post('/api/blog', toBlogPayload(values), {
-        headers: authHeaders(token),
-      });
-      return res.data as BlogPost;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'blog'] });
-      await queryClient.invalidateQueries({ queryKey: ['blog'] });
-      resetBlogForm();
-      showToast('Blog post created');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  const updateBlog = useMutation({
-    mutationFn: async ({ id, values }: { id: number; values: BlogValues }) => {
-      const res = await apiClient.put(`/api/blog/${id}`, toBlogPayload(values), {
-        headers: authHeaders(token),
-      });
-      return res.data as BlogPost;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'blog'] });
-      await queryClient.invalidateQueries({ queryKey: ['blog'] });
-      resetBlogForm();
-      showToast('Blog post updated');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  const deleteBlog = useMutation({
-    mutationFn: async (id: number) => {
-      try {
-        await apiClient.delete(`/api/blog/${id}`, { headers: authHeaders(token) });
-      } catch {
-        // Fallback: remove from query cache for offline / static mode
-      }
-      queryClient.setQueryData<BlogPost[]>(['admin', 'blog'], (old) =>
-        old ? old.filter((b) => b.id !== id) : []
-      );
-      queryClient.setQueryData<BlogPost[]>(['blog'], (old) =>
-        old ? old.filter((b) => b.id !== id) : []
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'blog'] });
-      await queryClient.invalidateQueries({ queryKey: ['blog'] });
-      setDeleteTarget(null);
-      showToast('Blog post deleted', 'info');
-    },
-    onError: (error: Error) => showToast(error.message, 'error'),
-  });
-
-  useEffect(() => {
-    if (!session || (!projectsQuery.error && !blogQuery.error)) return;
-
-    const message = (projectsQuery.error ?? blogQuery.error)?.message ?? '';
-    if (message.toLowerCase().includes('admin') || message.toLowerCase().includes('401')) {
-      handleSessionExpired();
-    }
-  }, [blogQuery.error, projectsQuery.error, session]);
-
-  function logout() {
+  const handleLogout = () => {
+    window.localStorage.removeItem(SESSION_KEY);
     setSession(null);
-    saveSession(null);
-    showToast('Signed out', 'info');
-  }
+    showToast('Logged out successfully', 'info');
+  };
 
-  function resetProjectForm() {
-    setEditingProjectId(null);
-    projectForm.reset({
-      ...defaultProjectValues,
-      displayOrder: projects.length + 1,
+  // Open Create Modal
+  const handleOpenCreate = () => {
+    setEditingProject(null);
+    setFormData({
+      title: '',
+      slug: '',
+      shortDescription: '',
+      fullDescription: '',
+      status: 'Completed',
+      visibility: 'Public',
+      isPublished: true,
+      isFeatured: false,
+      resumeCategory: 'Web',
+      experienceType: 'Professional',
+      startDate: '',
+      endDate: '',
+      isCurrentlyWorking: false,
+      readmeMarkdown: '# Project README\n\nSystem documentation and setup instructions.',
+      metaTitle: '',
+      metaDescription: '',
+      metaKeywords: '',
+      ogImageUrl: '',
+      displayOrder: 0,
+      thumbnailUrl: '/assets/images/placeholder.png',
+      categories: ['Web Design'],
+      technologies: ['React', 'C#'],
+      skills: [],
+      images: [],
+      links: [{ id: 1, linkType: 'Live', url: '', label: 'Live Demo' }],
+      features: [{ id: 1, title: 'Responsive UI', description: 'Supports dark mode & glassmorphism', displayOrder: 1 }],
+      achievements: [{ id: 1, title: 'Launched Production', description: 'Deployed successfully', displayOrder: 1 }],
     });
-  }
+    setModalTab('basic');
+    setIsProjectModalOpen(true);
+  };
 
-  function resetBlogForm() {
-    setEditingBlogId(null);
-    blogForm.reset(defaultBlogValues);
-  }
-
-  function startProjectEdit(project: Project) {
-    setActiveTab('projects');
-    setEditingProjectId(project.id);
-    projectForm.reset({
-      title: project.title,
-      description: project.description,
-      imageUrl: project.imageUrl,
-      categories: project.categories,
-      technologies: project.technologies.join(', '),
-      liveUrl: project.liveUrl ?? '',
-      displayOrder: project.displayOrder,
+  // Open Edit Modal
+  const handleOpenEdit = (p: Project) => {
+    setEditingProject(p);
+    setFormData({
+      title: p.title || '',
+      slug: p.slug || '',
+      shortDescription: p.shortDescription || p.description || '',
+      fullDescription: p.fullDescription || '',
+      status: p.status || 'Completed',
+      visibility: p.visibility || 'Public',
+      isPublished: p.isPublished ?? true,
+      isFeatured: p.isFeatured ?? false,
+      resumeCategory: p.resumeCategory || 'Web',
+      experienceType: p.experienceType || 'Professional',
+      startDate: p.startDate ? p.startDate.split('T')[0] : '',
+      endDate: p.endDate ? p.endDate.split('T')[0] : '',
+      isCurrentlyWorking: p.isCurrentlyWorking ?? false,
+      readmeMarkdown: p.readmeMarkdown || '# README',
+      metaTitle: p.metaTitle || '',
+      metaDescription: p.metaDescription || '',
+      metaKeywords: p.metaKeywords || '',
+      ogImageUrl: p.ogImageUrl || '',
+      displayOrder: p.displayOrder || 0,
+      thumbnailUrl: p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png',
+      categories: p.categories || ['Web Design'],
+      technologies: p.technologies || [],
+      skills: (p.skills || []) as string[],
+      images: p.images || [],
+      links: p.links || [],
+      features: p.features || [],
+      achievements: p.achievements || [],
     });
-  }
+    setModalTab('basic');
+    setIsProjectModalOpen(true);
+  };
 
-  function startBlogEdit(post: BlogPost) {
-    setActiveTab('blog');
-    setEditingBlogId(post.id);
-    blogForm.reset({
-      title: post.title,
-      excerpt: post.excerpt,
-      content: post.content ?? '',
-      imageUrl: post.imageUrl,
-      publishedAt: toDateTimeLocal(post.publishedAt),
-      author: post.author,
-      tags: post.tags.join(', '),
-      isPublished: post.isPublished ?? true,
-    });
-  }
+  // Save Project Mutation
+  const saveProjectMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        title: formData.title,
+        slug: formData.slug || undefined,
+        shortDescription: formData.shortDescription || formData.fullDescription,
+        fullDescription: formData.fullDescription || formData.shortDescription,
+        description: formData.fullDescription || formData.shortDescription,
+        status: formData.status,
+        visibility: formData.visibility,
+        isPublished: formData.isPublished,
+        isFeatured: formData.isFeatured,
+        resumeCategory: formData.resumeCategory,
+        experienceType: formData.experienceType,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
+        isCurrentlyWorking: formData.isCurrentlyWorking,
+        readmeMarkdown: formData.readmeMarkdown,
+        metaTitle: formData.metaTitle,
+        metaDescription: formData.metaDescription,
+        metaKeywords: formData.metaKeywords,
+        ogImageUrl: formData.ogImageUrl,
+        displayOrder: Number(formData.displayOrder),
+        thumbnailUrl: formData.thumbnailUrl,
+        categories: formData.categories.map((c) => c === 'Web Design' ? 'webdesign' : c === 'Web App' ? 'webapp' : c === 'Mobile' ? 'mobiledesign' : c === 'Game' ? 'gamedesign' : c.toLowerCase()),
+        technologies: (formData.technologiesText ? formData.technologiesText.split(',').map((t) => t.trim()).filter(Boolean) : formData.technologies),
+        skills: formData.skills,
+        images: formData.images,
+        links: formData.links,
+        features: formData.features,
+        achievements: formData.achievements,
+      };
 
-  function submitProject(values: ProjectValues) {
-    if (!token) return handleSessionExpired();
+      if (editingProject) {
+        const res = await apiClient.put(`/api/projects/${editingProject.id}`, payload, { headers: authHeaders });
+        return res.data;
+      } else {
+        const res = await apiClient.post('/api/projects', payload, { headers: authHeaders });
+        return res.data;
+      }
+    },
+    onSuccess: () => {
+      showToast(editingProject ? 'Project updated successfully!' : 'Project created successfully!');
+      setIsProjectModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-project-stats'] });
+    },
+    onError: (err: Error) => {
+      showToast(err.message || 'Failed to save project', 'error');
+    },
+  });
 
-    if (editingProjectId) {
-      updateProject.mutate({ id: editingProjectId, values });
-    } else {
-      createProject.mutate(values);
+  // Upload Thumbnail Image to Supabase
+  const handleUploadThumbnail = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const data = new FormData();
+    data.append('file', file);
+
+    try {
+      showToast('Uploading thumbnail to Supabase Storage...', 'info');
+      const res = await apiClient.post('/api/projects/upload-image?folder=thumbnails', data, {
+        headers: { ...authHeaders, 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data?.publicUrl) {
+        setFormData((prev) => ({ ...prev, thumbnailUrl: res.data.publicUrl }));
+        showToast('Thumbnail uploaded successfully!');
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+      showToast(errorMsg, 'error');
     }
-  }
+  };
 
-  function submitBlog(values: BlogValues) {
-    if (!token) return handleSessionExpired();
+  // Upload Gallery Image
+  const handleUploadGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (editingBlogId) {
-      updateBlog.mutate({ id: editingBlogId, values });
-    } else {
-      createBlog.mutate(values);
+    for (let i = 0; i < files.length; i++) {
+      const data = new FormData();
+      data.append('file', files[i]);
+      try {
+        const res = await apiClient.post('/api/projects/upload-image?folder=gallery', data, {
+          headers: { ...authHeaders, 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (res.data?.publicUrl) {
+          const newImg: ProjectImage = {
+            id: Date.now() + i,
+            storagePath: res.data.storagePath,
+            publicUrl: res.data.publicUrl,
+            altText: files[i].name,
+            isThumbnail: false,
+            displayOrder: formData.images.length + 1,
+          };
+          setFormData((prev) => ({ ...prev, images: [...prev.images, newImg] }));
+        }
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+        showToast(errorMsg, 'error');
+      }
     }
-  }
+    showToast('Gallery images uploaded!');
+  };
 
-  function confirmDelete() {
-    if (!deleteTarget) return;
-    if (deleteTarget.type === 'project') deleteProject.mutate(deleteTarget.id);
-    if (deleteTarget.type === 'blog') deleteBlog.mutate(deleteTarget.id);
-  }
+  // Single Action Handlers
+  const handleDuplicate = async (id: number) => {
+    try {
+      await apiClient.post(`/api/projects/${id}/duplicate`, {}, { headers: authHeaders });
+      showToast('Project duplicated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Duplicate failed';
+      showToast(errorMsg, 'error');
+    }
+  };
 
+  const handleTogglePublish = async (id: number, current: boolean) => {
+    try {
+      await apiClient.post(`/api/projects/${id}/publish?publish=${!current}`, {}, { headers: authHeaders });
+      showToast(current ? 'Project unpublished' : 'Project published!');
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Action failed';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  const handleToggleFeature = async (id: number) => {
+    try {
+      await apiClient.post(`/api/projects/${id}/feature`, {}, { headers: authHeaders });
+      showToast('Featured status updated!');
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Action failed';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiClient.delete(`/api/projects/${id}`, { headers: authHeaders });
+      showToast('Project deleted');
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Delete failed';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  // Bulk Actions
+  const handleBulkAction = async (action: string) => {
+    if (selectedIds.length === 0) return;
+    try {
+      await apiClient.post('/api/projects/bulk-action', { projectIds: selectedIds, action }, { headers: authHeaders });
+      showToast(`Bulk '${action}' applied to ${selectedIds.length} projects!`);
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['admin-projects'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Bulk action failed';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  // LOGIN SCREEN
   if (!session) {
     return (
-      <section className={styles.wrap} aria-labelledby="godmode-login-heading">
-        {toast && (
-          <div className={`${styles.toast} ${styles[toast.type]}`} role="status" aria-live="polite">
-            {toast.message}
+      <div className={styles.adminContainer}>
+        <div className={styles.loginCard}>
+          <div className={styles.titleGroup} style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Shield size={32} color="#0284c7" style={{ margin: '0 auto 8px' }} />
+            <h1>Admin Login & Workspace Access</h1>
+            <p>Access the Portfolio Project Management Suite</p>
           </div>
-        )}
-        <div className={styles.loginShell}>
-          <form
-            className={`${styles.loginPanel} glass-card`}
-            onSubmit={loginForm.handleSubmit((values) => loginMutation.mutate(values))}
-            noValidate
-          >
-            <div className={styles.loginIcon} aria-hidden="true">
-              <LogIn size={24} />
+
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const val = loginForm.getValues();
+            if (!val.password) {
+              setLoginError('Enter the admin password');
+              return;
+            }
+            setLoginError('');
+            loginMutation.mutate({ email: val.email || 'admin@codersatyam.com', password: val.password });
+          }}>
+            <div className={styles.fieldGroup}>
+              <label htmlFor="admin-email">Email Address</label>
+              <input
+                {...loginForm.register('email')}
+                id="admin-email"
+                type="email"
+                placeholder="admin@codersatyam.com"
+                className={styles.fieldInput}
+              />
             </div>
-            <div className="section-eyebrow">Godmode</div>
-            <h2 id="godmode-login-heading" className={styles.loginTitle}>Admin login</h2>
+            <div className={styles.fieldGroup}>
+              <label htmlFor="admin-password">Password</label>
+              <input
+                {...loginForm.register('password')}
+                id="admin-password"
+                type="password"
+                placeholder="••••••••"
+                className={styles.fieldInput}
+              />
+              {loginError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>{loginError}</p>}
+            </div>
 
-            <label className={styles.label} htmlFor="admin-email">Email</label>
-            <input
-              id="admin-email"
-              className={`${styles.input} ${loginForm.formState.errors.email ? styles.inputErr : ''}`}
-              autoComplete="username"
-              {...loginForm.register('email')}
-            />
-            {loginForm.formState.errors.email && (
-              <span className={styles.errMsg}>{loginForm.formState.errors.email.message}</span>
-            )}
-
-            <label className={styles.label} htmlFor="admin-password">Password</label>
-            <input
-              id="admin-password"
-              type="password"
-              className={`${styles.input} ${loginForm.formState.errors.password ? styles.inputErr : ''}`}
-              autoComplete="current-password"
-              {...loginForm.register('password')}
-            />
-            {loginForm.formState.errors.password && (
-              <span className={styles.errMsg}>{loginForm.formState.errors.password.message}</span>
-            )}
-
-            <button type="submit" className={`btn-primary ${styles.loginButton}`} disabled={loginMutation.isPending}>
-              <LogIn size={16} />
-              {loginMutation.isPending ? 'Signing in' : 'Sign in'}
+            <button
+              type="submit"
+              disabled={loginMutation.isPending}
+              className={styles.btnPrimary}
+              style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}
+            >
+              <LogIn size={16} /> Sign in
             </button>
           </form>
         </div>
-      </section>
+      </div>
     );
   }
 
-  const projectPending = createProject.isPending || updateProject.isPending;
-  const blogPending = createBlog.isPending || updateBlog.isPending;
-
   return (
-    <section className={styles.wrap} aria-labelledby="godmode-heading">
+    <div className={styles.adminContainer}>
+      {/* Toast Notification */}
       {toast && (
-        <div className={`${styles.toast} ${styles[toast.type]}`} role="status" aria-live="polite">
-          {toast.message}
+        <div className={`${styles.toast} ${toast.type === 'error' ? styles.toastError : toast.type === 'info' ? styles.toastInfo : styles.toastSuccess}`}>
+          <CheckCircle size={16} /> {toast.message}
         </div>
       )}
 
-      <header className={styles.header}>
-        <div>
-          <div className="section-eyebrow">Godmode</div>
-          <h2 id="godmode-heading" className={styles.title}>Admin workspace</h2>
+      {/* Header Row */}
+      <div className={styles.headerRow}>
+        <div className={styles.titleGroup}>
+          <h1>
+            <FolderKanban color="#38bdf8" /> Admin Workspace & Project Management
+          </h1>
+          <p>Logged in as {session.email} • <span>{projectsList.length} projects</span></p>
         </div>
-        <div className={styles.headerRight}>
-          <span className={styles.emailBadge}>{session.email}</span>
-          <button className={styles.iconTextButton} type="button" onClick={logout}>
-            <LogOut size={16} />
-            Log out
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className={styles.btnSecondary} onClick={() => refetchProjects()}>
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <button className={styles.btnPrimary} onClick={handleOpenCreate}>
+            <Plus size={16} /> Create Project
+          </button>
+          <button className={styles.btnSecondary} onClick={handleLogout}>
+            <LogOut size={14} /> Logout
           </button>
         </div>
-      </header>
+      </div>
 
-      <div className={styles.tabs} role="tablist" aria-label="Admin sections">
+      {/* Main Module Nav Tabs */}
+      <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         <button
-          type="button"
           role="tab"
           aria-selected={activeTab === 'projects'}
-          className={`${styles.tab} ${activeTab === 'projects' ? styles.activeTab : ''}`}
+          className={`${styles.tabBtn} ${activeTab === 'projects' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('projects')}
         >
-          <FolderKanban size={16} />
-          Projects
+          <FolderKanban size={14} style={{ display: 'inline', marginRight: 4 }} /> Projects ({projectsList.length})
         </button>
         <button
-          type="button"
           role="tab"
           aria-selected={activeTab === 'blog'}
-          className={`${styles.tab} ${activeTab === 'blog' ? styles.activeTab : ''}`}
+          className={`${styles.tabBtn} ${activeTab === 'blog' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('blog')}
         >
-          <Newspaper size={16} />
-          Blog
+          <Newspaper size={14} style={{ display: 'inline', marginRight: 4 }} /> Blog (1 posts)
         </button>
       </div>
 
-      <div className={styles.layout}>
-        <div className={styles.listPane}>
-          <div className={styles.searchBar}>
-            <Search size={16} aria-hidden="true" />
-            <input
-              className={styles.searchInput}
-              placeholder={activeTab === 'projects' ? 'Search projects' : 'Search posts'}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={() => {
-                void projectsQuery.refetch();
-                void blogQuery.refetch();
-              }}
-              aria-label="Refresh content"
-            >
-              <RefreshCw size={16} />
-            </button>
+      {/* Metrics Row */}
+      {stats && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <div className={styles.statVal}>{stats.totalProjects}</div>
+            <div className={styles.statLbl}>Total Projects</div>
           </div>
+          <div className={styles.statCard}>
+            <div className={styles.statVal} style={{ color: '#4ade80' }}>{stats.publishedProjects}</div>
+            <div className={styles.statLbl}>Published</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statVal} style={{ color: '#facc15' }}>{stats.draftProjects}</div>
+            <div className={styles.statLbl}>Drafts</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statVal} style={{ color: '#f472b6' }}>{stats.featuredProjects}</div>
+            <div className={styles.statLbl}>Featured</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statVal} style={{ color: '#a78bfa' }}>{stats.totalTechnologies}</div>
+            <div className={styles.statLbl}>Technologies</div>
+          </div>
+        </div>
+      )}
 
-          {activeTab === 'projects' ? (
-            <div className={styles.listBody}>
-              <div className={styles.listSummary}>
-                <span>{projects.length} projects</span>
-                <button type="button" className={styles.iconTextButton} onClick={resetProjectForm}>
-                  <Plus size={16} />
-                  New
-                </button>
-              </div>
-              {projectsQuery.isLoading ? (
-                <p className={styles.empty}>Loading projects</p>
-              ) : filteredProjects.length === 0 ? (
-                <p className={styles.empty}>No projects found</p>
-              ) : (
-                <ul className={styles.list} role="list">
-                  {filteredProjects.map((project) => (
-                    <li key={project.id} className={`${styles.listItem} ${editingProjectId === project.id ? styles.editing : ''}`}>
-                      <div className={styles.listInfo}>
-                        <p className={styles.listTitle}>{project.title}</p>
-                        <p className={styles.listMeta}>
-                          {project.categories.map((category) => CATEGORY_LABEL[category]).join(' / ')}
-                        </p>
-                      </div>
-                      <div className={styles.listActions}>
-                        <button
-                          type="button"
-                          className={styles.iconButton}
-                          onClick={() => startProjectEdit(project)}
-                          aria-label={`Edit ${project.title}`}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.iconButton} ${styles.dangerButton}`}
-                          onClick={() => setDeleteTarget({ type: 'project', id: project.id })}
-                          aria-label={`Delete ${project.title}`}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <div className={styles.listBody}>
-              <div className={styles.listSummary}>
-                <span>{posts.length} posts</span>
-                <button type="button" className={styles.iconTextButton} onClick={resetBlogForm}>
-                  <Plus size={16} />
-                  New
-                </button>
-              </div>
-              {blogQuery.isLoading ? (
-                <p className={styles.empty}>Loading posts</p>
-              ) : filteredPosts.length === 0 ? (
-                <p className={styles.empty}>No posts found</p>
-              ) : (
-                <ul className={styles.list} role="list">
-                  {filteredPosts.map((post) => (
-                    <li key={post.id} className={`${styles.listItem} ${editingBlogId === post.id ? styles.editing : ''}`}>
-                      <div className={styles.listInfo}>
-                        <p className={styles.listTitle}>{post.title}</p>
-                        <p className={styles.listMeta}>
-                          {new Date(post.publishedAt).toLocaleDateString()} / {post.isPublished ? 'Published' : 'Draft'}
-                        </p>
-                      </div>
-                      <div className={styles.listActions}>
-                        <button
-                          type="button"
-                          className={styles.iconButton}
-                          onClick={() => startBlogEdit(post)}
-                          aria-label={`Edit ${post.title}`}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.iconButton} ${styles.dangerButton}`}
-                          onClick={() => setDeleteTarget({ type: 'blog', id: post.id })}
-                          aria-label={`Delete ${post.title}`}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.searchGroup}>
+          <Search size={16} color="#94a3b8" />
+          <input
+            type="text"
+            placeholder="Search projects by title, tech, description, slug..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        <div className={`${styles.formPane} glass-card`}>
-          {activeTab === 'projects' ? (
-            <form onSubmit={projectForm.handleSubmit(submitProject)} noValidate>
-              <div className={styles.formHeader}>
-                <span className={styles.formMode}>{editingProjectId ? 'Editing project' : 'New project'}</span>
-                <h3 className={styles.formTitle}>{editingProjectId ? 'Update project' : 'Create project'}</h3>
-              </div>
+        <div className={styles.filterGroup}>
+          <select className={styles.selectInput} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="*">All Categories</option>
+            <option value="webdesign">Web Design</option>
+            <option value="webapp">Web App</option>
+            <option value="mobiledesign">Mobile</option>
+            <option value="gamedesign">Game</option>
+          </select>
 
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="project-title">Title</label>
-                <input id="project-title" className={styles.input} {...projectForm.register('title')} />
-                {projectForm.formState.errors.title && <span className={styles.errMsg}>{projectForm.formState.errors.title.message}</span>}
-              </div>
+          <select className={styles.selectInput} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All Statuses</option>
+            <option value="Completed">Completed</option>
+            <option value="Planning">Planning</option>
+            <option value="Draft">Draft</option>
+            <option value="Archived">Archived</option>
+          </select>
 
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="project-description">Description</label>
-                <textarea id="project-description" rows={4} className={`${styles.input} ${styles.textarea}`} {...projectForm.register('description')} />
-                {projectForm.formState.errors.description && <span className={styles.errMsg}>{projectForm.formState.errors.description.message}</span>}
-              </div>
+          <select className={styles.selectInput} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="Newest">Newest First</option>
+            <option value="Oldest">Oldest First</option>
+            <option value="Alphabetical">Alphabetical</option>
+            <option value="Featured">Featured First</option>
+          </select>
 
-              <div className={styles.fieldRow}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="project-image">Image URL</label>
-                  <input id="project-image" className={styles.input} {...projectForm.register('imageUrl')} />
-                  {projectForm.formState.errors.imageUrl && <span className={styles.errMsg}>{projectForm.formState.errors.imageUrl.message}</span>}
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="project-order">Order</label>
-                  <input id="project-order" type="number" min={0} className={styles.input} {...projectForm.register('displayOrder')} />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="project-tech">Technologies</label>
-                <input id="project-tech" className={styles.input} placeholder="React, Node.js, PostgreSQL" {...projectForm.register('technologies')} />
-                {projectForm.formState.errors.technologies && <span className={styles.errMsg}>{projectForm.formState.errors.technologies.message}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="project-url">Live URL</label>
-                <input id="project-url" className={styles.input} placeholder="https://example.com" {...projectForm.register('liveUrl')} />
-                {projectForm.formState.errors.liveUrl && <span className={styles.errMsg}>{projectForm.formState.errors.liveUrl.message}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <span className={styles.label}>Categories</span>
-                <div className={styles.optionGrid}>
-                  {CATEGORIES.map((category) => (
-                    <label key={category.value} className={styles.checkOption}>
-                      <input type="checkbox" value={category.value} {...projectForm.register('categories')} />
-                      <span>{category.label}</span>
-                    </label>
-                  ))}
-                </div>
-                {projectForm.formState.errors.categories && <span className={styles.errMsg}>{projectForm.formState.errors.categories.message}</span>}
-              </div>
-
-              <div className={styles.formActions}>
-                <button type="button" className={styles.iconTextButton} onClick={resetProjectForm}>
-                  <X size={16} />
-                  Cancel
-                </button>
-                <button type="submit" className={`btn-primary ${styles.saveButton}`} disabled={projectPending}>
-                  <Save size={16} />
-                  {projectPending ? 'Saving' : 'Save'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={blogForm.handleSubmit(submitBlog)} noValidate>
-              <div className={styles.formHeader}>
-                <span className={styles.formMode}>{editingBlogId ? 'Editing post' : 'New post'}</span>
-                <h3 className={styles.formTitle}>{editingBlogId ? 'Update blog post' : 'Create blog post'}</h3>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="blog-title">Title</label>
-                <input id="blog-title" className={styles.input} {...blogForm.register('title')} />
-                {blogForm.formState.errors.title && <span className={styles.errMsg}>{blogForm.formState.errors.title.message}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="blog-excerpt">Excerpt</label>
-                <textarea id="blog-excerpt" rows={3} className={`${styles.input} ${styles.textarea}`} {...blogForm.register('excerpt')} />
-                {blogForm.formState.errors.excerpt && <span className={styles.errMsg}>{blogForm.formState.errors.excerpt.message}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="blog-content">Content</label>
-                <textarea id="blog-content" rows={6} className={`${styles.input} ${styles.textarea}`} {...blogForm.register('content')} />
-              </div>
-
-              <div className={styles.fieldRow}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="blog-image">Image URL</label>
-                  <input id="blog-image" className={styles.input} {...blogForm.register('imageUrl')} />
-                  {blogForm.formState.errors.imageUrl && <span className={styles.errMsg}>{blogForm.formState.errors.imageUrl.message}</span>}
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="blog-date">Publish date</label>
-                  <input id="blog-date" type="datetime-local" className={styles.input} {...blogForm.register('publishedAt')} />
-                  {blogForm.formState.errors.publishedAt && <span className={styles.errMsg}>{blogForm.formState.errors.publishedAt.message}</span>}
-                </div>
-              </div>
-
-              <div className={styles.fieldRow}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="blog-author">Author</label>
-                  <input id="blog-author" className={styles.input} {...blogForm.register('author')} />
-                  {blogForm.formState.errors.author && <span className={styles.errMsg}>{blogForm.formState.errors.author.message}</span>}
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="blog-tags">Tags</label>
-                  <input id="blog-tags" className={styles.input} placeholder="Career, React" {...blogForm.register('tags')} />
-                </div>
-              </div>
-
-              <label className={styles.toggleRow}>
-                <input type="checkbox" {...blogForm.register('isPublished')} />
-                <span>Published</span>
-              </label>
-
-              <div className={styles.formActions}>
-                <button type="button" className={styles.iconTextButton} onClick={resetBlogForm}>
-                  <X size={16} />
-                  Cancel
-                </button>
-                <button type="submit" className={`btn-primary ${styles.saveButton}`} disabled={blogPending}>
-                  <Save size={16} />
-                  {blogPending ? 'Saving' : 'Save'}
-                </button>
-              </div>
-            </form>
-          )}
+          <div style={{ display: 'flex', gap: 2 }}>
+            <button
+              className={styles.btnSecondary}
+              style={{ padding: '8px 10px', background: viewMode === 'grid' ? '#0284c7' : undefined }}
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              className={styles.btnSecondary}
+              style={{ padding: '8px 10px', background: viewMode === 'list' ? '#0284c7' : undefined }}
+              onClick={() => setViewMode('list')}
+            >
+              <List size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {deleteTarget && (
-        <div className={styles.confirmOverlay} role="dialog" aria-modal="true" aria-labelledby="delete-title">
-          <div className={`${styles.confirmBox} glass-card`}>
-            <h3 id="delete-title">Confirm delete</h3>
-            <p>This cannot be undone.</p>
-            <div className={styles.confirmActions}>
-              <button type="button" className={styles.iconTextButton} onClick={() => setDeleteTarget(null)}>
-                <X size={16} />
-                Cancel
+      {/* Floating Bulk Bar */}
+      {selectedIds.length > 0 && (
+        <div className={styles.bulkBar}>
+          <div>Selected <strong>{selectedIds.length}</strong> project(s)</div>
+          <div className={styles.bulkActions}>
+            <button className={styles.bulkBtn} onClick={() => handleBulkAction('publish')}>Publish</button>
+            <button className={styles.bulkBtn} onClick={() => handleBulkAction('unpublish')}>Unpublish</button>
+            <button className={styles.bulkBtn} onClick={() => handleBulkAction('archive')}>Archive</button>
+            <button className={styles.bulkBtn} onClick={() => handleBulkAction('feature')}>Feature</button>
+            <button className={styles.bulkBtn} onClick={() => handleBulkAction('delete')}>Delete</button>
+          </div>
+        </div>
+      )}
+
+      {/* Projects Grid */}
+      <div className={styles.projectsGrid}>
+        {projectsList.map((p) => (
+          <div key={p.id} className={styles.projectCard}>
+            <div className={styles.cardThumb}>
+              <input
+                type="checkbox"
+                className={styles.cardCheck}
+                checked={selectedIds.includes(p.id)}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedIds((ids) => [...ids, p.id]);
+                  else setSelectedIds((ids) => ids.filter((id) => id !== p.id));
+                }}
+              />
+
+              <img src={p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png'} alt={p.title} />
+
+              <div className={styles.cardBadges}>
+                {p.isFeatured && <span className={styles.badge} style={{ background: 'rgba(234, 179, 8, 0.3)', color: '#fde047' }}><Star size={10} style={{ display: 'inline' }} /> Featured</span>}
+                <span className={styles.badge}>{p.status || 'Completed'}</span>
+              </div>
+            </div>
+
+            <div className={styles.cardContent}>
+              <div className={styles.cardHeader}>
+                <h3>{p.title}</h3>
+              </div>
+              <p className={styles.cardDesc}>{p.shortDescription || p.description}</p>
+
+              <div className={styles.tagRow}>
+                {p.categories?.map((c) => <span key={c} className={styles.tag}>{c}</span>)}
+                {p.technologies?.slice(0, 3).map((t) => <span key={t} className={styles.tag}>{t}</span>)}
+              </div>
+
+              <div className={styles.cardActions}>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{p.durationText || 'Completed'}</span>
+
+                <div className={styles.actionBtnGroup}>
+                  <button className={styles.iconBtn} title="Preview" aria-label={`Preview ${p.title}`} onClick={() => setPreviewProject(p)}><Eye size={14} /></button>
+                  <button className={styles.iconBtn} title="Duplicate" aria-label={`Duplicate ${p.title}`} onClick={() => handleDuplicate(p.id)}><Copy size={14} /></button>
+                  <button className={styles.iconBtn} title="Toggle Feature" aria-label={`Feature ${p.title}`} onClick={() => handleToggleFeature(p.id)}><Star size={14} /></button>
+                  <button className={styles.iconBtn} title="Edit" aria-label={`Edit ${p.title}`} onClick={() => handleOpenEdit(p)}><Pencil size={14} /></button>
+                  <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Delete" aria-label={`Delete ${p.title}`} onClick={() => setDeleteConfirmTarget(p.id)}><Trash2 size={14} /></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {activeTab === 'blog' && (
+        <div style={{ padding: 24, background: '#0f172a', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
+          {blogList.map((post) => (
+            <div key={post.id} style={{ marginBottom: 12 }}>
+              <h3>{post.title}</h3>
+              <p style={{ color: '#94a3b8', fontSize: 13 }}>{post.excerpt}</p>
+            </div>
+          ))}
+          <p style={{ color: '#64748b', fontSize: 12, marginTop: 16 }}>{blogList.length} posts</p>
+        </div>
+      )}
+
+      {/* CREATE / EDIT PROJECT MODAL */}
+      {isProjectModalOpen && (
+        <div className={styles.modalBackdrop} onClick={() => setIsProjectModalOpen(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
+                {editingProject ? `Edit Project: ${editingProject.title}` : 'Create New Industry-Standard Project'}
+              </h2>
+              <button className={styles.iconBtn} onClick={() => setIsProjectModalOpen(false)}><X size={18} /></button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className={styles.modalTabs}>
+              <button className={`${styles.tabBtn} ${modalTab === 'basic' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('basic')}>Basic Info</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'media' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('media')}>Media & Supabase Storage</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'timeline' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('timeline')}>Timeline & Duration</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'tech' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('tech')}>Technologies & Stack</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'links' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('links')}>External Links</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'features' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('features')}>Features</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'achievements' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('achievements')}>Achievements</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'readme' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('readme')}>Markdown README</button>
+              <button className={`${styles.tabBtn} ${modalTab === 'seo' ? styles.tabBtnActive : ''}`} onClick={() => setModalTab('seo')}>SEO Metadata</button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <div style={{ display: modalTab === 'basic' ? 'block' : 'none' }}>
+                <div className={styles.formGrid}>
+                  <div className={styles.fieldGroup}>
+                    <label htmlFor="project-title">Title</label>
+                    <input id="project-title" type="text" className={styles.fieldInput} value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. FashionAI SaaS Platform" />
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <label htmlFor="project-slug">Slug (Auto-generated)</label>
+                    <input id="project-slug" type="text" className={styles.fieldInput} value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} placeholder="fashion-ai-saas-platform" />
+                  </div>
+
+                  <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label htmlFor="project-short-desc">Short Description</label>
+                    <input id="project-short-desc" type="text" className={styles.fieldInput} value={formData.shortDescription} onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })} placeholder="Brief summary of the project" />
+                  </div>
+
+                  <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label htmlFor="project-description">Description</label>
+                    <textarea id="project-description" className={styles.fieldInput} rows={4} value={formData.fullDescription} onChange={(e) => setFormData({ ...formData, fullDescription: e.target.value, shortDescription: formData.shortDescription || e.target.value })} placeholder="Comprehensive description of architecture and goals" />
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <label>Status</label>
+                    <select className={styles.fieldInput} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
+                      <option value="Completed">Completed</option>
+                      <option value="Planning">Planning</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Archived">Archived</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <label>Resume Category</label>
+                    <select className={styles.fieldInput} value={formData.resumeCategory} onChange={(e) => setFormData({ ...formData, resumeCategory: e.target.value })}>
+                      <option value="Web">Web</option>
+                      <option value="Mobile">Mobile</option>
+                      <option value="AI/Cloud">AI / Cloud</option>
+                      <option value="DevOps">DevOps</option>
+                      <option value="Game">Game</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: modalTab === 'media' ? 'block' : 'none' }}>
+                <div>
+                  <div className={styles.fieldGroup} style={{ marginBottom: 24 }}>
+                    <label>Thumbnail Image (Upload to Supabase Storage)</label>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      <img src={formData.thumbnailUrl} alt="Thumbnail" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)' }} />
+                      <label className={styles.btnPrimary} style={{ cursor: 'pointer' }}>
+                        <UploadCloud size={16} /> Choose File
+                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadThumbnail} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <label>Gallery Upload (Multiple Images)</label>
+                    <label className={styles.btnSecondary} style={{ cursor: 'pointer', display: 'inline-flex', width: 'fit-content', marginBottom: 12 }}>
+                      <Upload size={16} /> Select Gallery Images
+                      <input type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleUploadGalleryImage} />
+                    </label>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
+                      {formData.images.map((img, idx) => (
+                        <div key={idx} style={{ position: 'relative' }}>
+                          <img src={img.publicUrl} alt="" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8 }} />
+                          <button
+                            className={styles.iconBtnDanger}
+                            style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 4, background: '#ef4444' }}
+                            onClick={() => setFormData({ ...formData, images: formData.images.filter((_, i) => i !== idx) })}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: modalTab === 'timeline' ? 'block' : 'none' }}>
+                <div className={styles.formGrid}>
+                  <div className={styles.fieldGroup}>
+                    <label>Start Date</label>
+                    <input type="date" className={styles.fieldInput} value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label>End Date</label>
+                    <input type="date" className={styles.fieldInput} disabled={formData.isCurrentlyWorking} value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} />
+                  </div>
+                  <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" id="currWork" checked={formData.isCurrentlyWorking} onChange={(e) => setFormData({ ...formData, isCurrentlyWorking: e.target.checked })} />
+                    <label htmlFor="currWork" style={{ cursor: 'pointer' }}>Currently Working On This Project</label>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: modalTab === 'basic' || modalTab === 'tech' ? 'block' : 'none' }}>
+                <div>
+                  <div className={styles.fieldGroup}>
+                    <label htmlFor="project-technologies">Technologies</label>
+                    <input id="project-technologies" type="text" className={styles.fieldInput} value={formData.technologiesText} onChange={(e) => setFormData({ ...formData, technologiesText: e.target.value })} placeholder="React, C#, PostgreSQL, Supabase" />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label>Categories</label>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      {['Web Design', 'Web App', 'Mobile', 'Game'].map((cat) => (
+                        <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                          <input
+                            type="checkbox"
+                            checked={formData.categories.includes(cat)}
+                            onChange={(e) => {
+                              if (e.target.checked) setFormData({ ...formData, categories: [...formData.categories, cat] });
+                              else setFormData({ ...formData, categories: formData.categories.filter((c) => c !== cat) });
+                            }}
+                          />
+                          {cat}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {modalTab === 'links' && (
+                <div>
+                  {formData.links.map((link, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center' }}>
+                      <select className={styles.selectInput} value={link.linkType} onChange={(e) => {
+                        const newLinks = [...formData.links];
+                        newLinks[idx].linkType = e.target.value;
+                        setFormData({ ...formData, links: newLinks });
+                      }}>
+                        <option value="Live">Live Demo</option>
+                        <option value="GitHub">GitHub</option>
+                        <option value="GitLab">GitLab</option>
+                        <option value="Documentation">Documentation</option>
+                        <option value="Figma">Figma</option>
+                      </select>
+
+                      <input type="text" className={styles.fieldInput} style={{ flex: 1 }} value={link.url} onChange={(e) => {
+                        const newLinks = [...formData.links];
+                        newLinks[idx].url = e.target.value;
+                        setFormData({ ...formData, links: newLinks });
+                      }} placeholder="https://..." />
+
+                      <button className={styles.iconBtnDanger} onClick={() => setFormData({ ...formData, links: formData.links.filter((_, i) => i !== idx) })}><Trash2 size={14} /></button>
+                    </div>
+                  ))}
+                  <button className={styles.btnSecondary} onClick={() => setFormData({ ...formData, links: [...formData.links, { id: Date.now(), linkType: 'Live', url: '', label: '' }] })}><Plus size={14} /> Add Link</button>
+                </div>
+              )}
+
+              {modalTab === 'readme' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, height: 360 }}>
+                  <div className={styles.fieldGroup}>
+                    <label>Markdown Source</label>
+                    <textarea className={styles.fieldInput} style={{ height: '100%', fontFamily: 'monospace' }} value={formData.readmeMarkdown} onChange={(e) => setFormData({ ...formData, readmeMarkdown: e.target.value })} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label>Live HTML Preview</label>
+                    <div style={{ background: '#020617', padding: 16, borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', overflowY: 'auto', height: '100%', fontSize: 13, color: '#cbd5e1' }}>
+                      <pre style={{ whiteSpace: 'pre-wrap' }}>{formData.readmeMarkdown}</pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.btnSecondary} onClick={() => setIsProjectModalOpen(false)}>Cancel</button>
+              <button className={styles.btnPrimary} disabled={saveProjectMutation.isPending} onClick={() => saveProjectMutation.mutate()}>
+                <Save size={16} /> Save
               </button>
-              <button type="button" className={`${styles.iconTextButton} ${styles.deleteConfirm}`} onClick={confirmDelete}>
-                <Check size={16} />
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmTarget !== null && (
+        <div className={styles.modalBackdrop} onClick={() => setDeleteConfirmTarget(null)}>
+          <div className={styles.modalBox} style={{ maxWidth: 400, padding: 24, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 18, marginBottom: 12, color: '#fff' }}>Confirm Delete</h3>
+            <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 20 }}>Are you sure you want to delete this item? This action will remove the record.</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className={styles.btnSecondary} onClick={() => setDeleteConfirmTarget(null)}>Cancel</button>
+              <button
+                className={styles.btnPrimary}
+                style={{ background: '#ef4444' }}
+                onClick={() => {
+                  const id = deleteConfirmTarget;
+                  setDeleteConfirmTarget(null);
+                  handleDelete(id);
+                }}
+              >
                 Delete
               </button>
             </div>
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

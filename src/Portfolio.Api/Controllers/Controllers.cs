@@ -89,22 +89,77 @@ public class ServicesController(ISkillService svc) : ApiControllerBase
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 [Route("api/projects")]
-public class ProjectsController(IProjectService svc, IAdminAuthService adminAuth) : ApiControllerBase
+public class ProjectsController(IProjectService svc, IStorageService storageSvc, IAdminAuthService adminAuth) : ApiControllerBase
 {
     [HttpGet]
-    [ResponseCache(Duration = 300)]
     [ProducesResponseType(typeof(IEnumerable<ProjectDto>), 200)]
     public async Task<IActionResult> GetAll([FromQuery] string? category, CancellationToken ct) =>
         Ok(await svc.GetProjectsAsync(category, ct));
 
+    [HttpGet("paged")]
+    [ProducesResponseType(typeof(PagedResultDto<ProjectDto>), 200)]
+    public async Task<IActionResult> GetPaged([FromQuery] ProjectListFilterDto filter, CancellationToken ct)
+    {
+        if (filter.IncludeUnpublished || filter.IncludeDeleted)
+        {
+            if (!HasAdminToken(adminAuth))
+                return AdminUnauthorized();
+        }
+
+        var result = await svc.GetPagedProjectsAsync(filter, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("dashboard-stats")]
+    [ProducesResponseType(typeof(ProjectDashboardStatsDto), 200)]
+    public async Task<IActionResult> GetDashboardStats(CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        return Ok(await svc.GetDashboardStatsAsync(ct));
+    }
+
+    [HttpGet("metadata-options")]
+    [ProducesResponseType(200)]
+    public async Task<IActionResult> GetMetadataOptions(CancellationToken ct)
+    {
+        var (cats, techs, skills) = await svc.GetMetadataOptionsAsync(ct);
+        return Ok(new { categories = cats, technologies = techs, skills = skills });
+    }
+
+    [HttpGet("audit-logs")]
+    [ProducesResponseType(typeof(IEnumerable<AuditLogDto>), 200)]
+    public async Task<IActionResult> GetAuditLogs([FromQuery] string? entityId, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        return Ok(await svc.GetAuditLogsAsync(entityId, ct));
+    }
+
     [HttpGet("{slug}")]
-    [ResponseCache(Duration = 300)]
     [ProducesResponseType(typeof(ProjectDto), 200)]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetBySlug(string slug, CancellationToken ct)
+    public async Task<IActionResult> GetBySlug(string slug, [FromQuery] bool includeUnpublished = false, CancellationToken ct = default)
     {
-        var project = await svc.GetBySlugAsync(slug, ct);
+        if (includeUnpublished && !HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var project = await svc.GetBySlugAsync(slug, includeUnpublished, ct);
         return project is null ? NotFound(new { detail = $"Project '{slug}' not found." }) : Ok(project);
+    }
+
+    [HttpGet("id/{id:int}")]
+    [ProducesResponseType(typeof(ProjectDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var project = await svc.GetByIdAsync(id, ct);
+        return project is null ? NotFound(new { detail = $"Project ID '{id}' not found." }) : Ok(project);
     }
 
     [HttpPost]
@@ -116,7 +171,10 @@ public class ProjectsController(IProjectService svc, IAdminAuthService adminAuth
         if (!HasAdminToken(adminAuth))
             return AdminUnauthorized();
 
-        var project = await svc.CreateAsync(dto, ct);
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var project = await svc.CreateAsync(dto, "Admin", ct);
         return CreatedAtAction(nameof(GetBySlug), new { slug = project.Slug }, project);
     }
 
@@ -130,20 +188,140 @@ public class ProjectsController(IProjectService svc, IAdminAuthService adminAuth
         if (!HasAdminToken(adminAuth))
             return AdminUnauthorized();
 
-        var project = await svc.UpdateAsync(id, dto, ct);
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        var project = await svc.UpdateAsync(id, dto, "Admin", ct);
         return project is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(project);
+    }
+
+    [HttpPost("{id:int}/duplicate")]
+    [ProducesResponseType(typeof(ProjectDto), 201)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Duplicate(int id, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var duplicated = await svc.DuplicateAsync(id, "Admin", ct);
+        return duplicated is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(duplicated);
+    }
+
+    [HttpPost("{id:int}/publish")]
+    [ProducesResponseType(typeof(ProjectDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Publish(int id, [FromQuery] bool publish = true, CancellationToken ct = default)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var updated = await svc.PublishAsync(id, publish, "Admin", ct);
+        return updated is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(updated);
+    }
+
+    [HttpPost("{id:int}/archive")]
+    [ProducesResponseType(typeof(ProjectDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Archive(int id, [FromQuery] bool archive = true, CancellationToken ct = default)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var updated = await svc.ArchiveAsync(id, archive, "Admin", ct);
+        return updated is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(updated);
+    }
+
+    [HttpPost("{id:int}/restore")]
+    [ProducesResponseType(typeof(ProjectDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> Restore(int id, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var updated = await svc.RestoreAsync(id, "Admin", ct);
+        return updated is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(updated);
+    }
+
+    [HttpPost("{id:int}/feature")]
+    [ProducesResponseType(typeof(ProjectDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> ToggleFeatured(int id, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var updated = await svc.ToggleFeaturedAsync(id, "Admin", ct);
+        return updated is null ? NotFound(new { detail = $"Project id '{id}' not found." }) : Ok(updated);
+    }
+
+    [HttpPost("reorder")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> Reorder([FromBody] ReorderProjectsRequestDto dto, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        await svc.ReorderProjectsAsync(dto.OrderedProjectIds, ct);
+        return Ok(new { success = true, message = "Projects reordered successfully." });
+    }
+
+    [HttpPost("bulk-action")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ExecuteBulkAction([FromBody] BulkActionRequestDto dto, CancellationToken ct)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        var result = await svc.ExecuteBulkActionAsync(dto, "Admin", ct);
+        return Ok(new { success = result, message = $"Bulk action '{dto.Action}' completed." });
+    }
+
+    [HttpPost("upload-image")]
+    [ProducesResponseType(typeof(ImageUploadResultDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(400)]
+    public async Task<IActionResult> UploadImage(IFormFile file, [FromQuery] string folder = "projects", CancellationToken ct = default)
+    {
+        if (!HasAdminToken(adminAuth))
+            return AdminUnauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { detail = "No image file provided." });
+
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { detail = "Image file exceeds maximum limit of 10MB." });
+
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml" };
+        if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            return BadRequest(new { detail = "Invalid image type. Allowed: JPG, PNG, WEBP, GIF, SVG." });
+
+        using var stream = file.OpenReadStream();
+        var result = await storageSvc.UploadImageAsync(stream, file.FileName, file.ContentType, folder, ct);
+
+        if (!result.Success)
+            return BadRequest(new { detail = result.Message });
+
+        return Ok(result);
     }
 
     [HttpDelete("{id:int}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(401)]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    public async Task<IActionResult> Delete(int id, [FromQuery] bool permanent = false, CancellationToken ct = default)
     {
         if (!HasAdminToken(adminAuth))
             return AdminUnauthorized();
 
-        var deleted = await svc.DeleteAsync(id, ct);
+        var deleted = await svc.DeleteAsync(id, permanent, "Admin", ct);
         return deleted ? NoContent() : NotFound(new { detail = $"Project id '{id}' not found." });
     }
 }

@@ -5,6 +5,7 @@ using Portfolio.Application.DTOs;
 using Portfolio.Domain.Entities;
 using Portfolio.Infrastructure.Data;
 using Portfolio.Infrastructure.Services;
+using Portfolio.Infrastructure.Repositories;
 using Xunit;
 
 namespace Portfolio.Application.Tests;
@@ -110,10 +111,17 @@ public class SkillServiceTests : ServiceTestBase
 // ── ProjectService tests ──────────────────────────────────────────────────────
 public class ProjectServiceTests : ServiceTestBase
 {
+    private ProjectService CreateService()
+    {
+        var repo = new ProjectRepository(Db);
+        var uow = new UnitOfWork(Db);
+        return new ProjectService(repo, uow, Db);
+    }
+
     [Fact]
     public async Task GetProjectsAsync_ReturnsAllSeededProjects()
     {
-        var svc = new ProjectService(Db);
+        var svc = CreateService();
         var projects = (await svc.GetProjectsAsync()).ToList();
         projects.Should().HaveCount(6);
     }
@@ -121,17 +129,17 @@ public class ProjectServiceTests : ServiceTestBase
     [Fact]
     public async Task GetProjectsAsync_WithCategory_FiltersCorrectly()
     {
-        var svc = new ProjectService(Db);
+        var svc = CreateService();
         var webProjects = (await svc.GetProjectsAsync("webdesign")).ToList();
 
         webProjects.Should().NotBeEmpty();
-        webProjects.All(p => p.Categories.Contains("webdesign")).Should().BeTrue();
+        webProjects.All(p => p.Categories.Contains("Web Design")).Should().BeTrue();
     }
 
     [Fact]
     public async Task GetBySlugAsync_WithValidSlug_ReturnsProject()
     {
-        var svc = new ProjectService(Db);
+        var svc = CreateService();
         var project = await svc.GetBySlugAsync("tutor-finder");
 
         project.Should().NotBeNull();
@@ -142,7 +150,7 @@ public class ProjectServiceTests : ServiceTestBase
     [Fact]
     public async Task GetBySlugAsync_WithInvalidSlug_ReturnsNull()
     {
-        var svc = new ProjectService(Db);
+        var svc = CreateService();
         var project = await svc.GetBySlugAsync("does-not-exist");
         project.Should().BeNull();
     }
@@ -150,7 +158,7 @@ public class ProjectServiceTests : ServiceTestBase
     [Fact]
     public async Task GetProjectsAsync_WildcardCategory_ReturnsAll()
     {
-        var svc = new ProjectService(Db);
+        var svc = CreateService();
         var all = (await svc.GetProjectsAsync("*")).ToList();
         var none = (await svc.GetProjectsAsync()).ToList();
         all.Count.Should().Be(none.Count);

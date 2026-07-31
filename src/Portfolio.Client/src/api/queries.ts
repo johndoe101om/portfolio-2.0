@@ -157,18 +157,24 @@ export function useProjects(category?: string) {
     queryFn: async () => {
       const getStaticProjects = () => {
         if (!category || category === '*') return PROJECTS;
-        return PROJECTS.filter((p: Project) => p.categories.includes(category as Project['categories'][number]));
+        return PROJECTS.filter((p: Project) => p.categories.some(c => c.toLowerCase() === category.toLowerCase()));
       };
       if (!USE_API) return getStaticProjects();
       try {
         const params = category && category !== '*' ? { category } : {};
         const res = await apiClient.get('/api/projects', { params });
-        return res.data ?? getStaticProjects();
+        if (!res.data || res.data.length === 0) return getStaticProjects();
+        return res.data.map((p: Project) => ({
+          ...p,
+          description: p.shortDescription || p.description || '',
+          imageUrl: p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png',
+          liveUrl: p.links?.find(l => l.linkType === 'Live')?.url || p.liveUrl || '',
+        }));
       } catch {
         return getStaticProjects();
       }
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30s stale time for prompt updates
     retry: false,
   });
 }
@@ -181,13 +187,20 @@ export function useProject(slug: string) {
       if (!USE_API) return getStaticProject();
       try {
         const res = await apiClient.get(`/api/projects/${slug}`);
-        return res.data ?? getStaticProject();
+        const p = res.data;
+        if (!p) return getStaticProject();
+        return {
+          ...p,
+          description: p.shortDescription || p.description || '',
+          imageUrl: p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png',
+          liveUrl: p.links?.find((l: { linkType: string }) => l.linkType === 'Live')?.url || p.liveUrl || '',
+        };
       } catch {
         return getStaticProject();
       }
     },
     enabled: Boolean(slug),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
     retry: false,
   });
 }
