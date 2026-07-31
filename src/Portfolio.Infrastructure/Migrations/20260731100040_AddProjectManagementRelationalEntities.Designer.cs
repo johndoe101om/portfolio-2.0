@@ -12,7 +12,7 @@ using Portfolio.Infrastructure.Data;
 namespace Portfolio.Infrastructure.Migrations
 {
     [DbContext(typeof(PortfolioDbContext))]
-    [Migration("20260731075253_AddProjectManagementRelationalEntities")]
+    [Migration("20260731100040_AddProjectManagementRelationalEntities")]
     partial class AddProjectManagementRelationalEntities
     {
         /// <inheritdoc />
