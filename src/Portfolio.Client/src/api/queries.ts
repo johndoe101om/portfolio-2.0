@@ -14,6 +14,7 @@ import {
   TESTIMONIALS,
 } from './staticData';
 import { apiClient } from './client';
+import { optimizedImageUrl } from '../utils/imageMetadata';
 
 const USE_API = Boolean(import.meta.env.VITE_API_BASE_URL);
 
@@ -25,7 +26,13 @@ export function useProfile() {
       if (!USE_API) return PROFILE;
       try {
         const res = await apiClient.get('/api/profile');
-        return res.data ?? PROFILE;
+        if (!res.data) return PROFILE;
+        return {
+          ...res.data,
+          fullName: res.data.fullName || 'Satyam Kumar Chaudhary',
+          profileImageUrl: optimizedImageUrl(res.data.profileImageUrl),
+          website: 'https://codrsatyam.netlify.app/',
+        };
       } catch {
         return PROFILE;
       }
@@ -167,7 +174,8 @@ export function useProjects(category?: string) {
         return res.data.map((p: Project) => ({
           ...p,
           description: p.shortDescription || p.description || '',
-          imageUrl: p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png',
+          imageUrl: optimizedImageUrl(p.thumbnailUrl || p.imageUrl),
+          thumbnailUrl: optimizedImageUrl(p.thumbnailUrl || p.imageUrl),
           liveUrl: p.links?.find(l => l.linkType === 'Live')?.url || p.liveUrl || '',
         }));
       } catch {
@@ -192,7 +200,8 @@ export function useProject(slug: string) {
         return {
           ...p,
           description: p.shortDescription || p.description || '',
-          imageUrl: p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png',
+          imageUrl: optimizedImageUrl(p.thumbnailUrl || p.imageUrl),
+          thumbnailUrl: optimizedImageUrl(p.thumbnailUrl || p.imageUrl),
           liveUrl: p.links?.find((l: { linkType: string }) => l.linkType === 'Live')?.url || p.liveUrl || '',
         };
       } catch {

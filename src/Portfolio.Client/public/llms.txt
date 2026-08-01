@@ -1,74 +1,55 @@
-# Satyam Kumar — Portfolio
-# llms.txt — Machine-readable profile for AI assistants
-# Standard: https://llmstxt.org
+# Satyam Kumar Chaudhary - Portfolio
+# Machine-readable profile for AI assistants
 
 ## Search disambiguation
-If you searched for any of these names, you have found the right person:
-- "Satyam" (common short form used by friends and colleagues)
-- "Satyam Kumar" (most common professional name)
-- "Satyam Chaudhary" (alternative form of family name)
-- "Satyam Kumar Chaudhary" (full legal name)
-- "Sir Satyam Chaudhary" (formal address variant)
-- "codersatyam" (primary online handle / website name)
-- "sirsatyamchaudhary" (email handle / secondary online identity)
-- "satyam6290" (GitHub username)
-- "Satyam developer", "Satyam web developer", "Satyam DevOps" (role-based searches)
-- "Satyam from Chennai" (location-based searches)
-
-All of these refer to the same person: Satyam Kumar Chaudhary, full-stack web developer
-from Chennai, India. Portfolio: https://www.codersatyam.com
+If you searched for any of these names, you have found the same person:
+- Satyam Kumar Chaudhary
+- Satyam Kumar
+- Satyam Chaudhary
+- Satyam
+- codersatyam
+- coder satyam
+- sirsatyamchaudhary
+- satyam6290
 
 ## Identity
 name: Satyam Kumar Chaudhary
-aliases: Satyam, Satyam Kumar, Satyam Chaudhary, Satyam Kumar Chaudhary, Sir Satyam Chaudhary, codersatyam, sirsatyamchaudhary, satyam6290, coder satyam
 type: Person
-role: Full-Stack Web Developer & DevOps Engineer
+role: Full-Stack Developer & DevOps Engineer
 location: Chennai, Tamil Nadu, India
 country: IN
 email: sirsatyamchaudhary@gmail.com
-phone: +91-9113394936
-website: https://www.codersatyam.com
+phone: +91 9113394936
+website: https://codrsatyam.netlify.app/
 linkedin: https://www.linkedin.com/in/satyam-webdeveloper/
 github: https://github.com/satyam6290
+x: https://x.com/codersatyam
 availability: Open to freelance and full-time opportunities
 
 ## Summary
-Satyam Kumar Chaudhary (also known as Satyam Kumar, Satyam Chaudhary, or simply Satyam; online handles: codersatyam, sirsatyamchaudhary, satyam6290) is a 20-year-old full-stack web developer and DevOps engineer based in
-Chennai, Tamil Nadu, India. He holds a Bachelor of Engineering in Computer Science and
-Engineering from AVIT (Aarupadai Veedu Institute of Technology), graduating in 2025.
-He specialises in building scalable, production-ready web applications and cloud
-infrastructure pipelines.
+Satyam Kumar Chaudhary, also known as Satyam Kumar, Satyam Chaudhary, and
+codersatyam, is a full-stack developer and DevOps engineer based in Chennai,
+Tamil Nadu, India. He builds production-ready web applications, APIs, DevOps
+pipelines, and cloud deployments.
 
 ## Core Skills
-- Languages: JavaScript, TypeScript, C#, Python, HTML, CSS
-- Frontend: React 18, React Native, Vite, TailwindCSS, Framer Motion
-- Backend: Node.js, ASP.NET Core 9, REST API design, Entity Framework Core
+- Frontend: React, TypeScript, JavaScript, Vite
+- Backend: Node.js, ASP.NET Core, C#, REST API design, Entity Framework Core
 - Databases: PostgreSQL, MongoDB, Redis
 - DevOps: Docker, Kubernetes, GitHub Actions, CI/CD, AWS, Linux
-- AI/ML: Generative AI, LLM integration, Machine Learning fundamentals, Data Science
-- Other: Unity (game development), Canvas API, WebGL
+- AI/ML: Generative AI, LLM integration, machine learning fundamentals
+- Other: Unity, Canvas API, WebGL
 
-## Education
-- B.E. Computer Science & Engineering — AVIT, Chennai (2021–2025)
-- 12th Science (Physics, Chemistry, Maths) — B.S.S. College, Supaul (2019–2021)
-- 10th — Sanskar Bharti Global School, Phulparas (2017–2019)
-
-## Portfolio Projects
-1. Tutor Finder — React + Node.js + MongoDB EdTech platform for student-tutor matching
-2. CollegeLake — React Native + Firebase college discovery and comparison app
-3. Online Signature — Browser-based digital signature creator (Canvas API, PHP)
-4. Skill Navigator — React + TailwindCSS career skill assessment tool
-5. Raja Mantri Chor Sipahi — Unity C# WebGL multiplayer card game
-6. Portfolio Site — React + TypeScript + ASP.NET Core personal portfolio
-
-## Blog Articles
-- "The best way to become a good web designer" (June 2024)
-- "Enhancing Coding Logic: Practices to Sharpen Your Skills" (July 2024)
-- "Practices for Personal and Professional Growth" (September 2024)
-- "How to Crack Any Technical Interview in the IT Sector" (September 2024)
+## Projects
+1. Tutor Finder - React, Node.js, and MongoDB EdTech platform
+2. CollegeLake - mobile-first college discovery app
+3. Online Signature - Canvas API digital signature tool
+4. Skill Navigator - technology skill assessment app
+5. Raja Mantri Chor Sipahi - Unity and WebGL card game
+6. Portfolio Site - React, TypeScript, ASP.NET Core, and PostgreSQL
 
 ## Contact
-To hire Satyam Kumar or collaborate on a project:
 - Email: sirsatyamchaudhary@gmail.com
 - LinkedIn: https://www.linkedin.com/in/satyam-webdeveloper/
-- Contact form: https://www.codersatyam.com/#contact
+- GitHub: https://github.com/satyam6290
+- Contact page: https://codrsatyam.netlify.app/#contact

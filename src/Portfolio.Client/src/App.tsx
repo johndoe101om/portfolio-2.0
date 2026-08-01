@@ -82,8 +82,8 @@ export default function App() {
           isOpen={mobileOpen}
           activeSection={active as Parameters<typeof nav>[0]}
           navItems={NAV_ITEMS}
-          profileName={profile?.fullName ?? 'Satyam Kumar'}
-          profileImageUrl={profile?.profileImageUrl ?? '/assets/images/profile.jpg'}
+          profileName={profile?.fullName ?? 'Satyam Kumar Chaudhary'}
+          profileImageUrl={profile?.profileImageUrl ?? '/assets/images/profile-lcp.jpg'}
           cvUrl={profile?.cvUrl ?? '#'}
           onToggle={() => setMobileOpen((o) => !o)}
           onNavigate={nav}
@@ -107,7 +107,7 @@ export default function App() {
                 {id === 'portfolio' && <PortfolioSection />}
                 {id === 'blog'      && <BlogSection />}
                 {id === 'contact'   && <ContactSection />}
-                {id === 'godmode'   && <AdminPanel />}
+                {id === 'godmode' && active === 'godmode' && <AdminPanel />}
               </div>
             ))}
           </Suspense>

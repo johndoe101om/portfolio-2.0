@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Home, User, FileText, Briefcase, BookOpenTex
 import styles from './MobileNavigation.module.css';
 import type { SectionId, NavItem } from '../../types';
 import type { LucideIcon } from 'lucide-react';
+import { getImageMetadata, optimizedImageUrl } from '../../utils/imageMetadata';
 
 const ICON_MAP: Record<SectionId, LucideIcon> = {
   hero: Home,
@@ -39,6 +40,9 @@ export function MobileNavigation({
   onPrev,
   onNext,
 }: Props) {
+  const optimizedProfileImageUrl = optimizedImageUrl(profileImageUrl);
+  const profileImage = getImageMetadata(optimizedProfileImageUrl, { width: 512, height: 512 });
+
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => {
@@ -72,7 +76,14 @@ export function MobileNavigation({
         <div className={styles.drawerTop}>
           <div className={styles.profileBadge}>
             <div className={styles.avatar}>
-              <img src={profileImageUrl} alt={profileName} className={styles.avatarImg} />
+              <img
+                src={optimizedProfileImageUrl}
+                alt={`${profileName} profile photo`}
+                width={profileImage.width}
+                height={profileImage.height}
+                decoding="async"
+                className={styles.avatarImg}
+              />
             </div>
             <div>
               <div className={styles.profileName}>{profileName}</div>

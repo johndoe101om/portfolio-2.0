@@ -1,89 +1,12 @@
-# ============================================================
-# robots.txt — Satyam Kumar Portfolio (codersatyam.com)
-# ============================================================
-
-# Standard crawlers (Google, Bing, Yahoo, DuckDuckGo, etc.)
 User-agent: *
 Allow: /
-Disallow: /admin
+Disallow: /godmode
 Disallow: /api/
-Crawl-delay: 1
 
-# Google — allow full crawl including images
 User-agent: Googlebot
 Allow: /
-Crawl-delay: 0
 
 User-agent: Googlebot-Image
 Allow: /assets/images/
 
-# Bing / Microsoft
-User-agent: bingbot
-Allow: /
-Crawl-delay: 1
-
-User-agent: MSNBot
-Allow: /
-
-# ── AI / LLM crawlers ── explicitly allow for discoverability
-# OpenAI (ChatGPT, GPT-4, plugins)
-User-agent: GPTBot
-Allow: /
-
-# OpenAI image crawler
-User-agent: OAI-SearchBot
-Allow: /
-
-# Perplexity AI
-User-agent: PerplexityBot
-Allow: /
-
-# Anthropic (Claude)
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-# Google AI (Gemini, Bard, Google SGE)
-User-agent: Google-Extended
-Allow: /
-
-# Apple (Siri, Apple Intelligence)
-User-agent: Applebot
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-# Common Crawl (used by many LLM training datasets)
-User-agent: CCBot
-Allow: /
-
-# Amazon Alexa
-User-agent: ia_archiver
-Allow: /
-
-# Bytedance (used by AI products)
-User-agent: Bytespider
-Allow: /
-
-# Meta AI
-User-agent: FacebookBot
-Allow: /
-
-# Twitter / X
-User-agent: Twitterbot
-Allow: /
-
-# LinkedIn
-User-agent: LinkedInBot
-Allow: /
-
-# WhatsApp preview
-User-agent: WhatsApp
-Allow: /
-
-# ── Sitemaps ──
 Sitemap: https://codrsatyam.netlify.app/sitemap.xml
-Sitemap: https://codrsatyam.netlify.app/sitemap-images.xml

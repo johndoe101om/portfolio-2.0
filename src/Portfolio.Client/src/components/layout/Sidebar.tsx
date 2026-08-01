@@ -4,6 +4,7 @@ import styles from './Sidebar.module.css';
 import type { SectionId } from '../../types';
 import type { LucideIcon } from 'lucide-react';
 import { useProfile } from '../../api/queries';
+import { getImageMetadata, optimizedImageUrl } from '../../utils/imageMetadata';
 
 interface NavDef {
   id: SectionId;
@@ -28,7 +29,8 @@ interface Props {
 export function Sidebar({ active, onNavigate }: Props) {
   const { data: profile } = useProfile();
   const [imgError, setImgError] = useState(false);
-  const profileImageUrl = profile?.profileImageUrl ?? '/assets/images/profile.jpg';
+  const profileImageUrl = optimizedImageUrl(profile?.profileImageUrl ?? '/assets/images/profile-lcp.jpg');
+  const profileImage = getImageMetadata(profileImageUrl, { width: 512, height: 512 });
 
   return (
     <nav className={styles.sidebar} aria-label="Main navigation">
@@ -40,7 +42,10 @@ export function Sidebar({ active, onNavigate }: Props) {
         {!imgError ? (
           <img
             src={profileImageUrl}
-            alt={profile?.fullName ?? 'Satyam Kumar'}
+            alt="Satyam Kumar Chaudhary profile photo"
+            width={profileImage.width}
+            height={profileImage.height}
+            decoding="async"
             className={styles.logoImg}
             onError={() => setImgError(true)}
           />

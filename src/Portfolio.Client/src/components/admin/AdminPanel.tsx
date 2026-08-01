@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Check,
   FolderKanban,
   LogIn,
   LogOut,
@@ -20,16 +19,9 @@ import {
   Copy,
   Eye,
   Star,
-  Archive,
-  RotateCcw,
   LayoutGrid,
   List,
-  Layers,
-  Sparkles,
-  Link as LinkIcon,
   CheckCircle,
-  FileText,
-  Clock,
   Shield,
   UploadCloud,
 } from 'lucide-react';
@@ -43,7 +35,6 @@ import type {
   ProjectFeature,
   ProjectAchievement,
   ProjectDashboardStats,
-  AuditLog,
 } from '../../types';
 import styles from './AdminPanel.module.css';
 
@@ -89,6 +80,7 @@ export function AdminPanel() {
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
+  const [blogSearchQuery, setBlogSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('*');
   const [statusFilter, setStatusFilter] = useState('');
   const [techFilter, setTechFilter] = useState('');
@@ -98,11 +90,14 @@ export function AdminPanel() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // Modals
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(true);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [modalTab, setModalTab] = useState<'basic' | 'media' | 'timeline' | 'tech' | 'links' | 'features' | 'achievements' | 'readme' | 'seo'>('basic');
   const [previewProject, setPreviewProject] = useState<Project | null>(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<number | null>(null);
+  const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
+  const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
+  const [blogDeleteConfirmTarget, setBlogDeleteConfirmTarget] = useState<number | null>(null);
   const [loginError, setLoginError] = useState('');
 
   // Toast
@@ -143,6 +138,17 @@ export function AdminPanel() {
     links: [] as ProjectLink[],
     features: [] as ProjectFeature[],
     achievements: [] as ProjectAchievement[],
+  });
+
+  const [blogFormData, setBlogFormData] = useState({
+    title: '',
+    excerpt: '',
+    content: '',
+    imageUrl: '/assets/images/placeholder.png',
+    publishedAt: '',
+    author: 'Satyam Kumar',
+    tagsText: '',
+    isPublished: true,
   });
 
   const authHeaders = useMemo(() => {
@@ -211,12 +217,19 @@ export function AdminPanel() {
   const projectsList = (projectsData ?? []) as Project[];
 
   // Query Blog Posts
-  const { data: blogPostsData } = useQuery({
+  const { data: blogPostsData, isLoading: blogLoading, refetch: refetchBlogPosts } = useQuery({
     queryKey: ['admin-blog-posts'],
     queryFn: async () => {
       if (!session?.token) return BLOG_POSTS as unknown as BlogPost[];
       try {
-        const res = await apiClient.get('/api/blog', { headers: authHeaders });
+        const res = await apiClient.get('/api/blog', {
+          headers: authHeaders,
+          params: {
+            includeUnpublished: true,
+            page: 1,
+            pageSize: 50,
+          },
+        });
         return (res.data ?? BLOG_POSTS) as BlogPost[];
       } catch {
         return BLOG_POSTS as unknown as BlogPost[];
@@ -225,6 +238,20 @@ export function AdminPanel() {
     enabled: Boolean(session?.token),
   });
   const blogList = (blogPostsData ?? BLOG_POSTS) as BlogPost[];
+  const filteredBlogList = useMemo(() => {
+    const query = blogSearchQuery.trim().toLowerCase();
+    if (!query) return blogList;
+
+    return blogList.filter((post) => {
+      const tags = post.tags ?? [];
+      return (
+        post.title.toLowerCase().includes(query) ||
+        post.excerpt.toLowerCase().includes(query) ||
+        post.author.toLowerCase().includes(query) ||
+        tags.some((tag) => tag.toLowerCase().includes(query))
+      );
+    });
+  }, [blogList, blogSearchQuery]);
 
   // Login Handler
   const loginForm = useForm<LoginValues>({
@@ -385,6 +412,80 @@ export function AdminPanel() {
       showToast(err.message || 'Failed to save project', 'error');
     },
   });
+
+  const handleOpenBlogCreate = () => {
+    setEditingBlogPost(null);
+    setBlogFormData({
+      title: '',
+      excerpt: '',
+      content: '',
+      imageUrl: '/assets/images/placeholder.png',
+      publishedAt: new Date().toISOString().split('T')[0],
+      author: 'Satyam Kumar',
+      tagsText: '',
+      isPublished: true,
+    });
+    setIsBlogModalOpen(true);
+  };
+
+  const handleOpenBlogEdit = (post: BlogPost) => {
+    setEditingBlogPost(post);
+    setBlogFormData({
+      title: post.title || '',
+      excerpt: post.excerpt || '',
+      content: post.content || '',
+      imageUrl: post.imageUrl || '/assets/images/placeholder.png',
+      publishedAt: post.publishedAt ? post.publishedAt.split('T')[0] : '',
+      author: post.author || 'Satyam Kumar',
+      tagsText: (post.tags || []).join(', '),
+      isPublished: post.isPublished ?? true,
+    });
+    setIsBlogModalOpen(true);
+  };
+
+  const saveBlogPostMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        title: blogFormData.title,
+        excerpt: blogFormData.excerpt,
+        content: blogFormData.content,
+        imageUrl: blogFormData.imageUrl || '/assets/images/placeholder.png',
+        publishedAt: blogFormData.publishedAt ? new Date(blogFormData.publishedAt).toISOString() : null,
+        author: blogFormData.author || 'Satyam Kumar',
+        tags: blogFormData.tagsText.split(',').map((tag) => tag.trim()).filter(Boolean),
+        isPublished: blogFormData.isPublished,
+      };
+
+      if (editingBlogPost) {
+        const res = await apiClient.put(`/api/blog/${editingBlogPost.id}`, payload, { headers: authHeaders });
+        return res.data;
+      }
+
+      const res = await apiClient.post('/api/blog', payload, { headers: authHeaders });
+      return res.data;
+    },
+    onSuccess: () => {
+      showToast(editingBlogPost ? 'Blog post updated successfully!' : 'Blog post created successfully!');
+      setIsBlogModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin-blog-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['blog'] });
+    },
+    onError: (err: Error) => {
+      showToast(err.message || 'Failed to save blog post', 'error');
+    },
+  });
+
+  const handleDeleteBlogPost = async (id: number) => {
+    try {
+      await apiClient.delete(`/api/blog/${id}`, { headers: authHeaders });
+      showToast('Blog post deleted');
+      queryClient.invalidateQueries({ queryKey: ['admin-blog-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['blog'] });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Delete failed';
+      showToast(errorMsg, 'error');
+    }
+  };
 
   // Upload Thumbnail Image to Supabase
   const handleUploadThumbnail = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -576,17 +677,17 @@ export function AdminPanel() {
       <div className={styles.headerRow}>
         <div className={styles.titleGroup}>
           <h1>
-            <FolderKanban color="#38bdf8" /> Admin Workspace & Project Management
+            <FolderKanban color="#38bdf8" /> Admin Workspace
           </h1>
           <p>Logged in as {session.email} • <span>{projectsList.length} projects</span></p>
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className={styles.btnSecondary} onClick={() => refetchProjects()}>
+          <button className={styles.btnSecondary} onClick={() => activeTab === 'projects' ? refetchProjects() : refetchBlogPosts()}>
             <RefreshCw size={14} /> Refresh
           </button>
-          <button className={styles.btnPrimary} onClick={handleOpenCreate}>
-            <Plus size={16} /> Create Project
+          <button className={styles.btnPrimary} onClick={activeTab === 'projects' ? handleOpenCreate : handleOpenBlogCreate}>
+            <Plus size={16} /> {activeTab === 'projects' ? 'Create Project' : 'Create Blog Post'}
           </button>
           <button className={styles.btnSecondary} onClick={handleLogout}>
             <LogOut size={14} /> Logout
@@ -608,14 +709,17 @@ export function AdminPanel() {
           role="tab"
           aria-selected={activeTab === 'blog'}
           className={`${styles.tabBtn} ${activeTab === 'blog' ? styles.tabBtnActive : ''}`}
-          onClick={() => setActiveTab('blog')}
+          onClick={() => {
+            setActiveTab('blog');
+            setSelectedIds([]);
+          }}
         >
-          <Newspaper size={14} style={{ display: 'inline', marginRight: 4 }} /> Blog (1 posts)
+          <Newspaper size={14} style={{ display: 'inline', marginRight: 4 }} /> Blog ({blogList.length} posts)
         </button>
       </div>
 
       {/* Metrics Row */}
-      {stats && (
+      {activeTab === 'projects' && stats && (
         <div className={styles.statsRow}>
           <div className={styles.statCard}>
             <div className={styles.statVal}>{stats.totalProjects}</div>
@@ -640,135 +744,186 @@ export function AdminPanel() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className={styles.toolbar}>
-        <div className={styles.searchGroup}>
-          <Search size={16} color="#94a3b8" />
-          <input
-            type="text"
-            placeholder="Search projects by title, tech, description, slug..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className={styles.filterGroup}>
-          <select className={styles.selectInput} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="*">All Categories</option>
-            <option value="webdesign">Web Design</option>
-            <option value="webapp">Web App</option>
-            <option value="mobiledesign">Mobile</option>
-            <option value="gamedesign">Game</option>
-          </select>
-
-          <select className={styles.selectInput} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">All Statuses</option>
-            <option value="Completed">Completed</option>
-            <option value="Planning">Planning</option>
-            <option value="Draft">Draft</option>
-            <option value="Archived">Archived</option>
-          </select>
-
-          <select className={styles.selectInput} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="Newest">Newest First</option>
-            <option value="Oldest">Oldest First</option>
-            <option value="Alphabetical">Alphabetical</option>
-            <option value="Featured">Featured First</option>
-          </select>
-
-          <div style={{ display: 'flex', gap: 2 }}>
-            <button
-              className={styles.btnSecondary}
-              style={{ padding: '8px 10px', background: viewMode === 'grid' ? '#0284c7' : undefined }}
-              onClick={() => setViewMode('grid')}
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              className={styles.btnSecondary}
-              style={{ padding: '8px 10px', background: viewMode === 'list' ? '#0284c7' : undefined }}
-              onClick={() => setViewMode('list')}
-            >
-              <List size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Floating Bulk Bar */}
-      {selectedIds.length > 0 && (
-        <div className={styles.bulkBar}>
-          <div>Selected <strong>{selectedIds.length}</strong> project(s)</div>
-          <div className={styles.bulkActions}>
-            <button className={styles.bulkBtn} onClick={() => handleBulkAction('publish')}>Publish</button>
-            <button className={styles.bulkBtn} onClick={() => handleBulkAction('unpublish')}>Unpublish</button>
-            <button className={styles.bulkBtn} onClick={() => handleBulkAction('archive')}>Archive</button>
-            <button className={styles.bulkBtn} onClick={() => handleBulkAction('feature')}>Feature</button>
-            <button className={styles.bulkBtn} onClick={() => handleBulkAction('delete')}>Delete</button>
-          </div>
-        </div>
-      )}
-
-      {/* Projects Grid */}
-      <div className={styles.projectsGrid}>
-        {projectsList.map((p) => (
-          <div key={p.id} className={styles.projectCard}>
-            <div className={styles.cardThumb}>
+      {activeTab === 'projects' ? (
+        <>
+          {/* Project Toolbar */}
+          <div className={styles.toolbar}>
+            <div className={styles.searchGroup}>
+              <Search size={16} color="#94a3b8" />
               <input
-                type="checkbox"
-                className={styles.cardCheck}
-                checked={selectedIds.includes(p.id)}
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedIds((ids) => [...ids, p.id]);
-                  else setSelectedIds((ids) => ids.filter((id) => id !== p.id));
-                }}
+                type="text"
+                placeholder="Search projects by title, tech, description, slug..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
-
-              <img src={p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png'} alt={p.title} />
-
-              <div className={styles.cardBadges}>
-                {p.isFeatured && <span className={styles.badge} style={{ background: 'rgba(234, 179, 8, 0.3)', color: '#fde047' }}><Star size={10} style={{ display: 'inline' }} /> Featured</span>}
-                <span className={styles.badge}>{p.status || 'Completed'}</span>
-              </div>
             </div>
 
-            <div className={styles.cardContent}>
-              <div className={styles.cardHeader}>
-                <h3>{p.title}</h3>
-              </div>
-              <p className={styles.cardDesc}>{p.shortDescription || p.description}</p>
+            <div className={styles.filterGroup}>
+              <select className={styles.selectInput} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="*">All Categories</option>
+                <option value="webdesign">Web Design</option>
+                <option value="webapp">Web App</option>
+                <option value="mobiledesign">Mobile</option>
+                <option value="gamedesign">Game</option>
+              </select>
 
-              <div className={styles.tagRow}>
-                {p.categories?.map((c) => <span key={c} className={styles.tag}>{c}</span>)}
-                {p.technologies?.slice(0, 3).map((t) => <span key={t} className={styles.tag}>{t}</span>)}
-              </div>
+              <select className={styles.selectInput} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">All Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="Planning">Planning</option>
+                <option value="Draft">Draft</option>
+                <option value="Archived">Archived</option>
+              </select>
 
-              <div className={styles.cardActions}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{p.durationText || 'Completed'}</span>
+              <select className={styles.selectInput} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <option value="Newest">Newest First</option>
+                <option value="Oldest">Oldest First</option>
+                <option value="Alphabetical">Alphabetical</option>
+                <option value="Featured">Featured First</option>
+              </select>
 
-                <div className={styles.actionBtnGroup}>
-                  <button className={styles.iconBtn} title="Preview" aria-label={`Preview ${p.title}`} onClick={() => setPreviewProject(p)}><Eye size={14} /></button>
-                  <button className={styles.iconBtn} title="Duplicate" aria-label={`Duplicate ${p.title}`} onClick={() => handleDuplicate(p.id)}><Copy size={14} /></button>
-                  <button className={styles.iconBtn} title="Toggle Feature" aria-label={`Feature ${p.title}`} onClick={() => handleToggleFeature(p.id)}><Star size={14} /></button>
-                  <button className={styles.iconBtn} title="Edit" aria-label={`Edit ${p.title}`} onClick={() => handleOpenEdit(p)}><Pencil size={14} /></button>
-                  <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Delete" aria-label={`Delete ${p.title}`} onClick={() => setDeleteConfirmTarget(p.id)}><Trash2 size={14} /></button>
-                </div>
+              <div style={{ display: 'flex', gap: 2 }}>
+                <button
+                  className={styles.btnSecondary}
+                  style={{ padding: '8px 10px', background: viewMode === 'grid' ? '#0284c7' : undefined }}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  className={styles.btnSecondary}
+                  style={{ padding: '8px 10px', background: viewMode === 'list' ? '#0284c7' : undefined }}
+                  onClick={() => setViewMode('list')}
+                >
+                  <List size={14} />
+                </button>
               </div>
             </div>
           </div>
-        ))}
-      </div>
 
-      {activeTab === 'blog' && (
-        <div style={{ padding: 24, background: '#0f172a', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
-          {blogList.map((post) => (
-            <div key={post.id} style={{ marginBottom: 12 }}>
-              <h3>{post.title}</h3>
-              <p style={{ color: '#94a3b8', fontSize: 13 }}>{post.excerpt}</p>
+          {selectedIds.length > 0 && (
+            <div className={styles.bulkBar}>
+              <div>Selected <strong>{selectedIds.length}</strong> project(s)</div>
+              <div className={styles.bulkActions}>
+                <button className={styles.bulkBtn} onClick={() => handleBulkAction('publish')}>Publish</button>
+                <button className={styles.bulkBtn} onClick={() => handleBulkAction('unpublish')}>Unpublish</button>
+                <button className={styles.bulkBtn} onClick={() => handleBulkAction('archive')}>Archive</button>
+                <button className={styles.bulkBtn} onClick={() => handleBulkAction('feature')}>Feature</button>
+                <button className={styles.bulkBtn} onClick={() => handleBulkAction('delete')}>Delete</button>
+              </div>
             </div>
-          ))}
-          <p style={{ color: '#64748b', fontSize: 12, marginTop: 16 }}>{blogList.length} posts</p>
-        </div>
+          )}
+
+          {projectsLoading ? (
+            <div style={{ color: '#94a3b8', padding: 24 }}>Loading projects...</div>
+          ) : (
+            <div className={styles.projectsGrid}>
+              {projectsList.map((p) => (
+                <div key={p.id} className={styles.projectCard}>
+                  <div className={styles.cardThumb}>
+                    <input
+                      type="checkbox"
+                      className={styles.cardCheck}
+                      checked={selectedIds.includes(p.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds((ids) => [...ids, p.id]);
+                        else setSelectedIds((ids) => ids.filter((id) => id !== p.id));
+                      }}
+                    />
+
+                    <img src={p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png'} alt={p.title} />
+
+                    <div className={styles.cardBadges}>
+                      {p.isFeatured && <span className={styles.badge} style={{ background: 'rgba(234, 179, 8, 0.3)', color: '#fde047' }}><Star size={10} style={{ display: 'inline' }} /> Featured</span>}
+                      <span className={styles.badge}>{p.status || 'Completed'}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.cardContent}>
+                    <div className={styles.cardHeader}>
+                      <h3>{p.title}</h3>
+                    </div>
+                    <p className={styles.cardDesc}>{p.shortDescription || p.description}</p>
+
+                    <div className={styles.tagRow}>
+                      {p.categories?.map((c) => <span key={c} className={styles.tag}>{c}</span>)}
+                      {p.technologies?.slice(0, 3).map((t) => <span key={t} className={styles.tag}>{t}</span>)}
+                    </div>
+
+                    <div className={styles.cardActions}>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>{p.durationText || 'Completed'}</span>
+
+                      <div className={styles.actionBtnGroup}>
+                        <button className={styles.iconBtn} title="Preview" aria-label={`Preview ${p.title}`} onClick={() => setPreviewProject(p)}><Eye size={14} /></button>
+                        <button className={styles.iconBtn} title="Duplicate" aria-label={`Duplicate ${p.title}`} onClick={() => handleDuplicate(p.id)}><Copy size={14} /></button>
+                        <button className={styles.iconBtn} title={p.isPublished ? 'Unpublish' : 'Publish'} aria-label={`${p.isPublished ? 'Unpublish' : 'Publish'} ${p.title}`} onClick={() => handleTogglePublish(p.id, p.isPublished ?? true)}><CheckCircle size={14} /></button>
+                        <button className={styles.iconBtn} title="Toggle Feature" aria-label={`Feature ${p.title}`} onClick={() => handleToggleFeature(p.id)}><Star size={14} /></button>
+                        <button className={styles.iconBtn} title="Edit" aria-label={`Edit ${p.title}`} onClick={() => handleOpenEdit(p)}><Pencil size={14} /></button>
+                        <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Delete" aria-label={`Delete ${p.title}`} onClick={() => setDeleteConfirmTarget(p.id)}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className={styles.toolbar}>
+            <div className={styles.searchGroup}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search blog posts by title, tag, author..."
+                value={blogSearchQuery}
+                onChange={(e) => setBlogSearchQuery(e.target.value)}
+              />
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: 13 }}>
+              {filteredBlogList.length} of {blogList.length} posts
+            </div>
+          </div>
+
+          {blogLoading ? (
+            <div style={{ color: '#94a3b8', padding: 24 }}>Loading blog posts...</div>
+          ) : (
+            <div className={styles.projectsGrid}>
+              {filteredBlogList.map((post) => (
+                <div key={post.id} className={styles.projectCard}>
+                  <div className={styles.cardThumb}>
+                    <img src={post.imageUrl || '/assets/images/placeholder.png'} alt={post.title} />
+                    <div className={styles.cardBadges}>
+                      <span className={styles.badge}>{post.isPublished ? 'Published' : 'Draft'}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.cardContent}>
+                    <div className={styles.cardHeader}>
+                      <h3>{post.title}</h3>
+                    </div>
+                    <p className={styles.cardDesc}>{post.excerpt}</p>
+
+                    <div className={styles.tagRow}>
+                      {(post.tags || []).map((tag) => <span key={tag} className={styles.tag}>{tag}</span>)}
+                    </div>
+
+                    <div className={styles.cardActions}>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : 'No date'}
+                      </span>
+
+                      <div className={styles.actionBtnGroup}>
+                        <button className={styles.iconBtn} title="Edit" aria-label={`Edit ${post.title}`} onClick={() => handleOpenBlogEdit(post)}><Pencil size={14} /></button>
+                        <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} title="Delete" aria-label={`Delete ${post.title}`} onClick={() => setBlogDeleteConfirmTarget(post.id)}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* CREATE / EDIT PROJECT MODAL */}
@@ -978,6 +1133,91 @@ export function AdminPanel() {
           </div>
         </div>
       )}
+      {isBlogModalOpen && (
+        <div className={styles.modalBackdrop} onClick={() => setIsBlogModalOpen(false)}>
+          <div className={styles.modalBox} style={{ maxWidth: 760 }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
+                {editingBlogPost ? `Edit Blog Post: ${editingBlogPost.title}` : 'Create Blog Post'}
+              </h2>
+              <button className={styles.iconBtn} onClick={() => setIsBlogModalOpen(false)}><X size={18} /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <div className={styles.formGrid}>
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="blog-title">Title</label>
+                  <input id="blog-title" type="text" className={styles.fieldInput} value={blogFormData.title} onChange={(e) => setBlogFormData({ ...blogFormData, title: e.target.value })} placeholder="Post title" />
+                </div>
+
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="blog-author">Author</label>
+                  <input id="blog-author" type="text" className={styles.fieldInput} value={blogFormData.author} onChange={(e) => setBlogFormData({ ...blogFormData, author: e.target.value })} placeholder="Satyam Kumar" />
+                </div>
+
+                <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="blog-excerpt">Excerpt</label>
+                  <textarea id="blog-excerpt" className={styles.fieldInput} rows={3} value={blogFormData.excerpt} onChange={(e) => setBlogFormData({ ...blogFormData, excerpt: e.target.value })} placeholder="Short summary for the blog card" />
+                </div>
+
+                <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="blog-content">Content</label>
+                  <textarea id="blog-content" className={styles.fieldInput} rows={8} value={blogFormData.content} onChange={(e) => setBlogFormData({ ...blogFormData, content: e.target.value })} placeholder="Full blog content" />
+                </div>
+
+                <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="blog-image-url">Image URL</label>
+                  <input id="blog-image-url" type="text" className={styles.fieldInput} value={blogFormData.imageUrl} onChange={(e) => setBlogFormData({ ...blogFormData, imageUrl: e.target.value })} placeholder="/assets/images/blog-image.png" />
+                </div>
+
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="blog-published-at">Published Date</label>
+                  <input id="blog-published-at" type="date" className={styles.fieldInput} value={blogFormData.publishedAt} onChange={(e) => setBlogFormData({ ...blogFormData, publishedAt: e.target.value })} />
+                </div>
+
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="blog-tags">Tags</label>
+                  <input id="blog-tags" type="text" className={styles.fieldInput} value={blogFormData.tagsText} onChange={(e) => setBlogFormData({ ...blogFormData, tagsText: e.target.value })} placeholder="React, Portfolio, Career" />
+                </div>
+
+                <div className={styles.fieldGroup} style={{ gridColumn: '1 / -1', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <input id="blog-is-published" type="checkbox" checked={blogFormData.isPublished} onChange={(e) => setBlogFormData({ ...blogFormData, isPublished: e.target.checked })} />
+                  <label htmlFor="blog-is-published" style={{ cursor: 'pointer' }}>Published</label>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.btnSecondary} onClick={() => setIsBlogModalOpen(false)}>Cancel</button>
+              <button className={styles.btnPrimary} disabled={saveBlogPostMutation.isPending} onClick={() => saveBlogPostMutation.mutate()}>
+                <Save size={16} /> Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {previewProject && (
+        <div className={styles.modalBackdrop} onClick={() => setPreviewProject(null)}>
+          <div className={styles.modalBox} style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{previewProject.title}</h2>
+              <button className={styles.iconBtn} onClick={() => setPreviewProject(null)}><X size={18} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              <img
+                src={previewProject.thumbnailUrl || previewProject.imageUrl || '/assets/images/placeholder.png'}
+                alt={previewProject.title}
+                style={{ width: '100%', maxHeight: 260, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }}
+              />
+              <p style={{ color: '#cbd5e1', lineHeight: 1.6 }}>{previewProject.fullDescription || previewProject.shortDescription || previewProject.description}</p>
+              <div className={styles.tagRow} style={{ marginTop: 16 }}>
+                {previewProject.categories?.map((category) => <span key={category} className={styles.tag}>{category}</span>)}
+                {previewProject.technologies?.map((technology) => <span key={technology} className={styles.tag}>{technology}</span>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {deleteConfirmTarget !== null && (
         <div className={styles.modalBackdrop} onClick={() => setDeleteConfirmTarget(null)}>
           <div className={styles.modalBox} style={{ maxWidth: 400, padding: 24, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -992,6 +1232,28 @@ export function AdminPanel() {
                   const id = deleteConfirmTarget;
                   setDeleteConfirmTarget(null);
                   handleDelete(id);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {blogDeleteConfirmTarget !== null && (
+        <div className={styles.modalBackdrop} onClick={() => setBlogDeleteConfirmTarget(null)}>
+          <div className={styles.modalBox} style={{ maxWidth: 400, padding: 24, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 18, marginBottom: 12, color: '#fff' }}>Confirm Delete</h3>
+            <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 20 }}>Are you sure you want to delete this blog post? This action will remove the record.</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className={styles.btnSecondary} onClick={() => setBlogDeleteConfirmTarget(null)}>Cancel</button>
+              <button
+                className={styles.btnPrimary}
+                style={{ background: '#ef4444' }}
+                onClick={() => {
+                  const id = blogDeleteConfirmTarget;
+                  setBlogDeleteConfirmTarget(null);
+                  handleDeleteBlogPost(id);
                 }}
               >
                 Delete

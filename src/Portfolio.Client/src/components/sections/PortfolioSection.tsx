@@ -3,6 +3,7 @@ import { ExternalLink, X, Calendar, Clock, Award, Star, BookOpen, Layers, CheckC
 import styles from './PortfolioSection.module.css';
 import { useProjects } from '../../api/queries';
 import type { Project } from '../../types';
+import { getImageMetadata, optimizedImageUrl } from '../../utils/imageMetadata';
 
 const FILTERS: { value: string; label: string }[] = [
   { value: '*',            label: 'All' },
@@ -52,46 +53,55 @@ export function PortfolioSection() {
           <p className={styles.empty}>Loading projects from API...</p>
         )}
 
-        {!isLoading && projects.map((p) => (
-          <article
-            key={p.id}
-            className={`${styles.card} glass-card`}
-            onClick={() => setSelectedProject(p)}
-          >
-            <div className={styles.thumb}>
-              <img
-                src={p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png'}
-                alt={p.title}
-                className={styles.thumbImg}
-              />
-              <div className={styles.badgeRow}>
-                {p.status && <span className={styles.statusBadge}>{p.status}</span>}
-                {p.isFeatured && <span className={styles.featuredBadge}><Star size={10} style={{ display: 'inline' }} /> Featured</span>}
-              </div>
-            </div>
+        {!isLoading && projects.map((p) => {
+          const imageSrc = optimizedImageUrl(p.thumbnailUrl || p.imageUrl || '/assets/images/placeholder.png');
+          const imageMeta = getImageMetadata(imageSrc);
 
-            <div className={styles.body}>
-              <h3 className={styles.cardTitle}>{p.title}</h3>
-              <p className={styles.cardDesc}>{p.shortDescription || p.description}</p>
-              
-              <div className={styles.techs}>
-                {p.technologies?.slice(0, 4).map((t) => (
-                  <span key={t} className={styles.tech}>{t}</span>
-                ))}
-                {p.technologies?.length > 4 && (
-                  <span className={styles.tech}>+{p.technologies.length - 4}</span>
-                )}
+          return (
+            <article
+              key={p.id}
+              className={`${styles.card} glass-card`}
+              onClick={() => setSelectedProject(p)}
+            >
+              <div className={styles.thumb}>
+                <img
+                  src={imageSrc}
+                  alt={`${p.title} project by Satyam Kumar Chaudhary`}
+                  width={imageMeta.width}
+                  height={imageMeta.height}
+                  loading="lazy"
+                  decoding="async"
+                  className={styles.thumbImg}
+                />
+                <div className={styles.badgeRow}>
+                  {p.status && <span className={styles.statusBadge}>{p.status}</span>}
+                  {p.isFeatured && <span className={styles.featuredBadge}><Star size={10} style={{ display: 'inline' }} /> Featured</span>}
+                </div>
               </div>
 
-              <div className={styles.cardFooter}>
-                <span>{p.durationText || 'Completed'}</span>
-                <span className={styles.liveLink}>
-                  Details <ExternalLink size={12} />
-                </span>
+              <div className={styles.body}>
+                <h3 className={styles.cardTitle}>{p.title}</h3>
+                <p className={styles.cardDesc}>{p.shortDescription || p.description}</p>
+                
+                <div className={styles.techs}>
+                  {p.technologies?.slice(0, 4).map((t) => (
+                    <span key={t} className={styles.tech}>{t}</span>
+                  ))}
+                  {p.technologies?.length > 4 && (
+                    <span className={styles.tech}>+{p.technologies.length - 4}</span>
+                  )}
+                </div>
+
+                <div className={styles.cardFooter}>
+                  <span>{p.durationText || 'Completed'}</span>
+                  <span className={styles.liveLink}>
+                    Details <ExternalLink size={12} />
+                  </span>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
 
         {!isLoading && projects.length === 0 && (
           <p className={styles.empty}>No projects found in this category.</p>
@@ -104,8 +114,12 @@ export function PortfolioSection() {
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <img
-                src={selectedProject.thumbnailUrl || selectedProject.imageUrl || '/assets/images/placeholder.png'}
-                alt={selectedProject.title}
+                src={optimizedImageUrl(selectedProject.thumbnailUrl || selectedProject.imageUrl || '/assets/images/placeholder.png')}
+                alt={`${selectedProject.title} project preview by Satyam Kumar Chaudhary`}
+                width={getImageMetadata(optimizedImageUrl(selectedProject.thumbnailUrl || selectedProject.imageUrl)).width}
+                height={getImageMetadata(optimizedImageUrl(selectedProject.thumbnailUrl || selectedProject.imageUrl)).height}
+                loading="lazy"
+                decoding="async"
                 className={styles.modalHeroImg}
               />
               <div className={styles.modalHeroOverlay} />
@@ -163,7 +177,11 @@ export function PortfolioSection() {
                       <img
                         key={img.id || idx}
                         src={img.publicUrl}
-                        alt={img.altText || `Gallery image ${idx + 1}`}
+                        alt={img.altText || `${selectedProject.title} gallery image ${idx + 1}`}
+                        width={800}
+                        height={450}
+                        loading="lazy"
+                        decoding="async"
                         className={styles.galleryImg}
                         onClick={() => window.open(img.publicUrl, '_blank')}
                       />

@@ -119,10 +119,10 @@ describe('AdminPanel', () => {
   it('posts new projects through the admin API', async () => {
     const user = await signIn();
 
+    await user.click(screen.getByRole('button', { name: /Create Project/i }));
     await user.type(screen.getByLabelText('Title'), 'New Project');
     await user.type(screen.getByLabelText('Description'), 'A detailed project description.');
     await user.type(screen.getByLabelText('Technologies'), 'React, PostgreSQL');
-    await user.click(screen.getByLabelText('Web Design'));
     await user.click(screen.getByRole('button', { name: /^Save$/i }));
 
     await waitFor(() => {
@@ -132,6 +132,32 @@ describe('AdminPanel', () => {
           title: 'New Project',
           categories: ['webdesign'],
           technologies: ['React', 'PostgreSQL'],
+        }),
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
+        })
+      );
+    });
+  });
+
+  it('posts new blog posts through the admin API', async () => {
+    const user = await signIn();
+
+    await user.click(screen.getByRole('tab', { name: /Blog/i }));
+    await user.click(screen.getByRole('button', { name: /Create Blog Post/i }));
+    await user.type(screen.getByLabelText('Title'), 'New Blog Post');
+    await user.type(screen.getByLabelText('Excerpt'), 'A useful article summary.');
+    await user.type(screen.getByLabelText('Content'), 'Full article content for the admin editor.');
+    await user.type(screen.getByLabelText('Tags'), 'React, Admin');
+    await user.click(screen.getByRole('button', { name: /^Save$/i }));
+
+    await waitFor(() => {
+      expect(apiPost).toHaveBeenCalledWith(
+        '/api/blog',
+        expect.objectContaining({
+          title: 'New Blog Post',
+          excerpt: 'A useful article summary.',
+          tags: ['React', 'Admin'],
         }),
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
@@ -151,6 +177,25 @@ describe('AdminPanel', () => {
     await waitFor(() => {
       expect(apiDelete).toHaveBeenCalledWith(
         '/api/projects/1',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
+        })
+      );
+    });
+  });
+
+  it('confirms blog deletes before calling the API', async () => {
+    const user = await signIn();
+
+    await user.click(screen.getByRole('tab', { name: /Blog/i }));
+    await user.click(screen.getByRole('button', { name: /Delete Hello Admin/i }));
+    expect(apiDelete).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /^Delete$/i }));
+
+    await waitFor(() => {
+      expect(apiDelete).toHaveBeenCalledWith(
+        '/api/blog/1',
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: 'Bearer admin-token' }),
         })

@@ -22,20 +22,20 @@ import type {
 
 export const PROFILE: Profile = {
   id: 1,
-  fullName: 'Satyam Kumar',
-  title: 'Web Developer',
-  subtitle: 'App Developer',
+  fullName: 'Satyam Kumar Chaudhary',
+  title: 'Full-Stack Developer & DevOps Engineer',
+  subtitle: 'React, ASP.NET Core, PostgreSQL, Docker, and Cloud',
   aboutText:
-    'Spirited software engineer with a love for clean code and problem-solving. Always exploring new technologies and methodologies to enhance development efficiency. Driven by a desire to create robust, scalable, and user-friendly software solutions.',
+    'Satyam Kumar Chaudhary, also known as Satyam Kumar, Satyam Chaudhary, and codersatyam, is a full-stack developer and DevOps engineer based in Chennai, Tamil Nadu, India. He builds production-ready web applications, APIs, automation pipelines, and cloud deployments with React, TypeScript, ASP.NET Core, PostgreSQL, Docker, CI/CD, and AWS.',
   phone: '+91 9113394936',
   email: 'sirsatyamchaudhary@gmail.com',
-  website: 'www.codersatyam.com',
+  website: 'https://codrsatyam.netlify.app/',
   city: 'Chennai',
   country: 'INDIA',
   age: 20,
   degree: 'Bachelor of Engineering',
   freelanceStatus: 'Available',
-  profileImageUrl: '/assets/images/profile.jpg',
+  profileImageUrl: '/assets/images/profile-lcp.jpg',
   cvUrl:
     'https://drive.google.com/file/d/1P28ffSgcD7xEWpu02UgWMAV1b3kp_fyJ/view?usp=sharing',
   mapLat: 43.053454,
@@ -46,6 +46,8 @@ export const SOCIAL_LINKS: SocialLink[] = [
   { id: 1, platform: 'WhatsApp',  url: 'https://wa.me/qr/TZU5O77ZT4MGN1',                   iconClass: 'bi bi-whatsapp',  displayOrder: 1 },
   { id: 2, platform: 'Instagram', url: 'https://www.instagram.com/be_stranger7964/',         iconClass: 'bi bi-instagram', displayOrder: 2 },
   { id: 3, platform: 'LinkedIn',  url: 'https://www.linkedin.com/in/satyam-webdeveloper/',   iconClass: 'bi bi-linkedin',  displayOrder: 3 },
+  { id: 4, platform: 'GitHub',    url: 'https://github.com/satyam6290',                      iconClass: 'bi bi-github',    displayOrder: 4 },
+  { id: 5, platform: 'X',         url: 'https://x.com/codersatyam',                          iconClass: 'bi bi-twitter-x', displayOrder: 5 },
 ];
 
 export const ROTATING_ROLES: string[] = [
@@ -262,7 +264,7 @@ export const PROJECTS: Project[] = [
     emoji: '🗺️',
     title: 'Skill Navigator App',
     description: 'An application that helps users assess and plan their technology skill development journey.',
-    imageUrl: '/assets/images/project-skill-navigator.png',
+    imageUrl: '/assets/images/project-skill-navigator-optimized.jpg',
     categories: ['webdesign'],
     technologies: ['React', 'TailwindCSS', 'Node.js'],
     displayOrder: 4,
@@ -272,7 +274,7 @@ export const PROJECTS: Project[] = [
     slug: 'raja-mantri-chor-sipahi',
     title: 'Raja Mantri Chor Sipahi',
     description: 'A digital version of the classic Indian card game with online multiplayer support.',
-    imageUrl: '/assets/images/project-game.png',
+    imageUrl: '/assets/images/project-game-optimized.jpg',
     categories: ['gamedesign', 'webapp'],
     technologies: ['Unity', 'C#', 'WebGL'],
     displayOrder: 5,
@@ -283,7 +285,7 @@ export const PROJECTS: Project[] = [
     emoji: '🎨',
     title: 'Detailed Portfolio',
     description: 'A mobile-first personal portfolio with animated transitions and project showcases.',
-    imageUrl: '/assets/images/project-portfolio.png',
+    imageUrl: '/assets/images/project-portfolio-optimized.jpg',
     categories: ['mobiledesign'],
     technologies: ['React', 'SCSS', 'Framer Motion'],
     displayOrder: 6,

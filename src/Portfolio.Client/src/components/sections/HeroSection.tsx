@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Linkedin, Instagram, MessageCircle } from 'lucide-react';
+import { Github, Linkedin, Instagram, MessageCircle, Twitter } from 'lucide-react';
 import styles from './HeroSection.module.css';
 import { useProfile } from '../../api/queries';
 import type { SectionId } from '../../types';
+import { getImageMetadata, optimizedImageUrl } from '../../utils/imageMetadata';
 
 const ROLES = ['Full-Stack Developer', 'DevOps Engineer', 'Cloud Architect', 'App Developer'];
 
@@ -13,6 +14,8 @@ interface Props {
 export function HeroSection({ onNavigate }: Props) {
   const { data: profile } = useProfile();
   const [roleIdx, setRoleIdx] = useState(0);
+  const profileImageUrl = optimizedImageUrl(profile?.profileImageUrl ?? '/assets/images/profile-lcp.jpg');
+  const profileImage = getImageMetadata(profileImageUrl, { width: 512, height: 512 });
 
   useEffect(() => {
     const t = setInterval(() => setRoleIdx((i) => (i + 1) % ROLES.length), 2500);
@@ -28,14 +31,12 @@ export function HeroSection({ onNavigate }: Props) {
         </div>
 
         <h1 id="hero-name" className={styles.name}>
-          Hi, I'm{' '}
-          <span className={styles.nameHighlight}>
-            {profile?.fullName ?? 'Satyam Kumar'}
-          </span>
+          <span className={styles.nameHighlight}>Satyam Kumar Chaudhary</span>
+          {' - Full-Stack Developer & DevOps Engineer'}
         </h1>
 
         <p className={styles.role}>
-          {'Building the web · '}
+          {'Building production web platforms - '}
           <strong
             className={styles.roleAnim}
             key={roleIdx}
@@ -48,12 +49,12 @@ export function HeroSection({ onNavigate }: Props) {
 
         <p className={styles.desc}>
           {profile?.aboutText ??
-            'Spirited software engineer with a love for clean code and bold ideas. I craft scalable, user-first applications and enjoy turning complex problems into elegant solutions.'}
+            'Satyam Kumar Chaudhary is a full-stack developer and DevOps engineer in Chennai, India, building scalable web applications, APIs, automation pipelines, and cloud deployments.'}
         </p>
 
         <div className={styles.actions}>
           <button className="btn-primary" onClick={() => onNavigate('portfolio')}>
-            View my work →
+            View my work
           </button>
           <button className="btn-outline" onClick={() => onNavigate('contact')}>
             Let's talk
@@ -65,16 +66,34 @@ export function HeroSection({ onNavigate }: Props) {
             href="https://www.linkedin.com/in/satyam-webdeveloper/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="LinkedIn"
+            aria-label="View Satyam Kumar Chaudhary on LinkedIn"
             className={styles.socialLink}
           >
             <Linkedin size={18} />
           </a>
           <a
+            href="https://github.com/satyam6290"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View Satyam Kumar Chaudhary on GitHub"
+            className={styles.socialLink}
+          >
+            <Github size={18} />
+          </a>
+          <a
+            href="https://x.com/codersatyam"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View codersatyam on X"
+            className={styles.socialLink}
+          >
+            <Twitter size={18} />
+          </a>
+          <a
             href="https://www.instagram.com/be_stranger7964/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Instagram"
+            aria-label="View Satyam Kumar Chaudhary on Instagram"
             className={styles.socialLink}
           >
             <Instagram size={18} />
@@ -83,7 +102,7 @@ export function HeroSection({ onNavigate }: Props) {
             href="https://wa.me/qr/TZU5O77ZT4MGN1"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="WhatsApp"
+            aria-label="Message Satyam Kumar Chaudhary on WhatsApp"
             className={styles.socialLink}
           >
             <MessageCircle size={18} />
@@ -95,8 +114,12 @@ export function HeroSection({ onNavigate }: Props) {
         <div className={styles.avatarRing} aria-hidden="true" />
         <div className={styles.avatar}>
           <img
-            src={profile?.profileImageUrl ?? '/assets/images/profile.jpg'}
-            alt={profile?.fullName ?? 'Satyam Kumar'}
+            src={profileImageUrl}
+            alt="Portrait of Satyam Kumar Chaudhary, full-stack developer and DevOps engineer in Chennai"
+            width={profileImage.width}
+            height={profileImage.height}
+            loading="eager"
+            decoding="async"
             className={styles.avatarImg}
           />
         </div>
