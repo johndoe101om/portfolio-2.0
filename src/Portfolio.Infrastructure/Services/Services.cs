@@ -484,7 +484,7 @@ public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioD
         if (dto.Categories != null && dto.Categories.Count > 0)
         {
             var dbCats = await db.Categories.ToListAsync(ct);
-            foreach (var catName in dto.Categories.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()))
+            foreach (var catName in dto.Categories.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var normName = catName.ToLower().Replace(" ", "");
                 var existingCat = dbCats.FirstOrDefault(c => c.Name.ToLower() == normName || c.DisplayName.ToLower() == catName.ToLower());
@@ -492,7 +492,6 @@ public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioD
                 {
                     existingCat = new Category { Name = normName, DisplayName = catName };
                     db.Categories.Add(existingCat);
-                    await db.SaveChangesAsync(ct);
                     dbCats.Add(existingCat);
                 }
                 p.ProjectCategories.Add(new ProjectCategoryMapping { Project = p, Category = existingCat });
@@ -503,14 +502,13 @@ public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioD
         if (dto.Technologies != null && dto.Technologies.Count > 0)
         {
             var dbTechs = await db.Technologies.ToListAsync(ct);
-            foreach (var techName in dto.Technologies.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()))
+            foreach (var techName in dto.Technologies.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var existingTech = dbTechs.FirstOrDefault(t => t.Name.ToLower() == techName.ToLower());
                 if (existingTech is null)
                 {
                     existingTech = new Technology { Name = techName };
                     db.Technologies.Add(existingTech);
-                    await db.SaveChangesAsync(ct);
                     dbTechs.Add(existingTech);
                 }
                 p.ProjectTechnologies.Add(new ProjectTechnology { Project = p, Technology = existingTech });
@@ -521,7 +519,7 @@ public class ProjectService(IProjectRepository repo, IUnitOfWork uow, PortfolioD
         if (dto.Skills != null && dto.Skills.Count > 0)
         {
             var dbSkills = await db.Skills.ToListAsync(ct);
-            foreach (var skillName in dto.Skills.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()))
+            foreach (var skillName in dto.Skills.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var existingSkill = dbSkills.FirstOrDefault(s => s.Name.ToLower() == skillName.ToLower());
                 if (existingSkill != null)

@@ -121,18 +121,25 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
         if (db.Database.IsRelational())
+        {
             await db.Database.MigrateAsync();
+            await SyncPostgresIdentitySequencesAsync(db, logger);
+        }
         else
+        {
             await db.Database.EnsureCreatedAsync();
+        }
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogWarning(ex, "Migration warning during startup. Ensured database creation.");
         await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsRelational())
+            await SyncPostgresIdentitySequencesAsync(db, logger);
     }
 }
 
@@ -249,6 +256,57 @@ static IEnumerable<string> GetLocalEnvFileCandidates()
     yield return Path.Combine(currentDirectory, "src", "Portfolio.Api", ".env");
     yield return Path.Combine(currentDirectory, ".env");
     yield return Path.Combine(AppContext.BaseDirectory, ".env");
+}
+
+static async Task SyncPostgresIdentitySequencesAsync(PortfolioDbContext db, ILogger logger)
+{
+    if (!string.Equals(db.Database.ProviderName, "Npgsql.EntityFrameworkCore.PostgreSQL", StringComparison.Ordinal))
+        return;
+
+    var identityTables = new[]
+    {
+        "AuditLogs",
+        "BlogPosts",
+        "Categories",
+        "ContactMessages",
+        "Educations",
+        "Experiences",
+        "Profiles",
+        "ProjectAchievements",
+        "ProjectCategories",
+        "ProjectFeatures",
+        "ProjectImages",
+        "ProjectLinks",
+        "Projects",
+        "ProjectSkills",
+        "ProjectTechnologies",
+        "Services",
+        "SiteSettings",
+        "Skills",
+        "SocialLinks",
+        "Statistics",
+        "Technologies",
+        "Testimonials"
+    };
+
+    foreach (var tableName in identityTables)
+    {
+        try
+        {
+            var sql = $"""
+SELECT setval(
+    pg_get_serial_sequence('"{tableName}"', 'Id'),
+    GREATEST(COALESCE((SELECT MAX("Id") FROM "{tableName}"), 0), 1),
+    COALESCE((SELECT MAX("Id") FROM "{tableName}"), 0) > 0
+);
+""";
+            await db.Database.ExecuteSqlRawAsync(sql);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not synchronize identity sequence for {TableName}.", tableName);
+        }
+    }
 }
 
 // Expose for integration tests
